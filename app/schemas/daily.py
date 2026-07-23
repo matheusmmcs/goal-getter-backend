@@ -19,6 +19,22 @@ class DiarioConfigResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class DiarioConfigCreate(BaseModel):
+    periodo_addnota_inicio: Optional[str] = "08:00"
+    periodo_addnota_fim: Optional[str] = "18:00"
+    is_retroativo: bool = True
+    is_permite_atrasado: bool = True
+    is_publico_para_grupo: bool = True
+    canal_chatmessage: Optional[str] = None
+
+class DiarioConfigUpdate(BaseModel):
+    periodo_addnota_inicio: Optional[str] = None
+    periodo_addnota_fim: Optional[str] = None
+    is_retroativo: Optional[bool] = None
+    is_permite_atrasado: Optional[bool] = None
+    is_publico_para_grupo: Optional[bool] = None
+    canal_chatmessage: Optional[str] = None
+
 class DiarioConfigSummaryResponse(BaseModel):
     id: UUID
     hasRegistroHoje: bool
