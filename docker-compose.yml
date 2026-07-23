@@ -1,10 +1,8 @@
-
-
 services:
   backend:
     build: .
     ports:
-      - "8000:8000"
+      - "8881:8000"
     volumes:
       - ./app:/app/app
       - ./alembic:/app/alembic
@@ -19,7 +17,7 @@ services:
   db:
     image: postgres:15-alpine
     ports:
-      - "5432:5432"
+      - "5472:5432"
     environment:
       POSTGRES_USER: goaluser
       POSTGRES_PASSWORD: goalpass
@@ -27,7 +25,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U goaluser -d goalgetterdb"]
+      test: [ "CMD-SHELL", "pg_isready -U goaluser -d goalgetterdb" ]
       interval: 5s
       timeout: 5s
       retries: 5
