@@ -1,0 +1,13 @@
+{
+  "include": ["app"],
+  "exclude": ["**/__pycache__", ".venv", "alembic"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "reportMissingImports": "error",
+  "reportUndefinedVariable": "error",
+  "reportCallIssue": "warning",
+  "reportAttributeAccessIssue": "warning",
+  "reportArgumentType": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportGeneralTypeIssues": "warning"
+}
