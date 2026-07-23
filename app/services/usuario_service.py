@@ -1,3 +1,4 @@
+from uuid import UUID
 from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException
 from app.models.usuario import Usuario
@@ -19,7 +20,7 @@ def list_active(db: Session, page: int, size: int):
         "totalPages": math.ceil(total / size) if size > 0 else 0
     }
 
-def get_by_id(db: Session, user_id: str) -> Usuario:
+def get_by_id(db: Session, user_id: UUID) -> Usuario:
     user = db.query(Usuario).options(
         selectinload(Usuario.perfis),
         selectinload(Usuario.atribuicoes)
@@ -38,7 +39,7 @@ def create(db: Session, data: UsuarioCreate) -> Usuario:
     db.refresh(new_user)
     return new_user
 
-def update(db: Session, user_id: str, data: UsuarioUpdate) -> Usuario:
+def update(db: Session, user_id: UUID, data: UsuarioUpdate) -> Usuario:
     user = get_by_id(db, user_id)
     update_data = data.model_dump(exclude_unset=True)
     if "senha" in update_data and update_data["senha"]:
@@ -49,20 +50,20 @@ def update(db: Session, user_id: str, data: UsuarioUpdate) -> Usuario:
     db.refresh(user)
     return user
 
-def deactivate(db: Session, user_id: str):
+def deactivate(db: Session, user_id: UUID):
     user = get_by_id(db, user_id)
     user.inativo = True
     db.commit()
     db.refresh(user)
     return user
 
-def get_atribuicoes(db: Session, user_id: str):
+def get_atribuicoes(db: Session, user_id: UUID):
     return db.query(Atribuicao).options(
         selectinload(Atribuicao.grupo),
         selectinload(Atribuicao.nivel)
     ).filter(Atribuicao.id_usuario == user_id, Atribuicao.inativo == False).all()
 
-def get_perfis(db: Session, user_id: str):
+def get_perfis(db: Session, user_id: UUID):
     return db.query(Perfil).options(
         selectinload(Perfil.unidade),
         selectinload(Perfil.nivel)

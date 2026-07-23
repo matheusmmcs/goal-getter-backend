@@ -1,3 +1,4 @@
+from uuid import UUID
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.unidade import Unidade
@@ -15,7 +16,7 @@ def list_all(db: Session, page: int, size: int):
         "totalPages": math.ceil(total / size) if size > 0 else 0
     }
 
-def get_by_id(db: Session, id: str) -> Unidade:
+def get_by_id(db: Session, id: UUID) -> Unidade:
     unidade = db.query(Unidade).filter(Unidade.id == id, Unidade.inativo == False).first()
     if not unidade:
         raise HTTPException(status_code=404, detail="Unidade não encontrada")
@@ -28,7 +29,7 @@ def create(db: Session, data) -> Unidade:
     db.refresh(nova_unidade)
     return nova_unidade
 
-def update(db: Session, id: str, data) -> Unidade:
+def update(db: Session, id: UUID, data) -> Unidade:
     unidade = get_by_id(db, id)
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -37,7 +38,7 @@ def update(db: Session, id: str, data) -> Unidade:
     db.refresh(unidade)
     return unidade
 
-def deactivate(db: Session, id: str):
+def deactivate(db: Session, id: UUID):
     unidade = get_by_id(db, id)
     unidade.inativo = True
     db.commit()

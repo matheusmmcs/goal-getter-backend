@@ -1,6 +1,12 @@
 {
-  "include": ["app"],
-  "exclude": ["**/__pycache__", ".venv", "alembic"],
+  "include": [
+    "app"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    ".venv",
+    "alembic"
+  ],
   "venvPath": ".",
   "venv": ".venv",
   "reportMissingImports": "error",

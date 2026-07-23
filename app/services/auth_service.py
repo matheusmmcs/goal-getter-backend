@@ -29,7 +29,7 @@ def login(db: Session, credentials: LoginRequest) -> dict:
         )
 
     # Reload with perfis and atribuicoes for the response
-    user = (
+    full_user = (
         db.query(Usuario)
         .options(
             selectinload(Usuario.perfis),
@@ -38,21 +38,26 @@ def login(db: Session, credentials: LoginRequest) -> dict:
         .filter(Usuario.id == user.id)
         .first()
     )
+    if not full_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado",
+        )
 
-    role = "admin" if user.is_admin else "user"
+    role = "admin" if full_user.is_admin else "user"
     access_token = create_access_token(
-        data={"sub": str(user.id), "role": role}
+        data={"sub": str(full_user.id), "role": role}
     )
 
     return {
         "token": access_token,
         "user": {
-            "id": user.id,
-            "nome": user.nome,
-            "usuario": user.usuario,
-            "email": user.email,
-            "cpf": user.cpf,
-            "is_admin": user.is_admin,
+            "id": full_user.id,
+            "nome": full_user.nome,
+            "usuario": full_user.usuario,
+            "email": full_user.email,
+            "cpf": full_user.cpf,
+            "is_admin": full_user.is_admin,
             "perfis": [],
         },
     }

@@ -1,8 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
-    SECRET_KEY: str
+    DATABASE_URL: str = 'postgresql://goaluser:goalpass@localhost:5472/goalgetterdb'
+    SECRET_KEY: str = 'dev-secret-key-change-in-prod'
     ALGORITHM: str = 'HS256'
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     APP_TIMEZONE: str = 'America/Fortaleza'

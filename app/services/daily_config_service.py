@@ -30,27 +30,25 @@ def get_config(db: Session, config_id: UUID):
 
 
 def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
-    """Get config summary for a group, auto-creating a default config if it doesn't exist."""
+    """Get or auto-create daily config for a group."""
+    # Check if group exists
+    grupo = (
+        db.query(GrupoTrabalho)
+        .filter(GrupoTrabalho.id == group_id, GrupoTrabalho.inativo == False)
+        .first()
+    )
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+
     config = (
         db.query(DiarioConfig)
         .options(joinedload(DiarioConfig.grupo))
-        .filter(
-            DiarioConfig.id_grupo == group_id,
-            DiarioConfig.inativo == False,
-        )
+        .filter(DiarioConfig.id_grupo == group_id, DiarioConfig.inativo == False)
         .first()
     )
 
+    # Auto-create default config if none exists
     if not config:
-        # Check if group exists
-        grupo = db.query(GrupoTrabalho).filter(GrupoTrabalho.id == group_id, GrupoTrabalho.inativo == False).first()
-        if not grupo:
-            raise HTTPException(
-                status_code=404,
-                detail="Grupo não encontrado",
-            )
-        
-        # Auto-create default daily config
         config = DiarioConfig(
             id_grupo=group_id,
             periodo_addnota_inicio="08:00",
@@ -69,6 +67,9 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
             .filter(DiarioConfig.id == config.id)
             .first()
         )
+
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuração daily não encontrada")
 
     # Check if user has a daily entry for today
     today = now_in_app_timezone().date()
@@ -112,11 +113,10 @@ def create_config(db: Session, group_id: UUID, data):
         raise HTTPException(status_code=404, detail="Grupo não encontrado")
 
     existing = db.query(DiarioConfig).filter(
-        DiarioConfig.id_grupo == group_id,
-        DiarioConfig.inativo == False,
+        DiarioConfig.id_grupo == group_id, DiarioConfig.inativo == False
     ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Este grupo já possui uma configuração de diário ativa")
+        raise HTTPException(status_code=400, detail="Este grupo já possui uma configuração de diário")
 
     new_config = DiarioConfig(
         id_grupo=group_id,
@@ -147,4 +147,3 @@ def update_config(db: Session, config_id: UUID, data):
     db.commit()
     db.refresh(config)
     return get_config(db, config.id)
-
