@@ -19,10 +19,20 @@ router = APIRouter(tags=["Usuarios"])
 def list_usuarios(
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
+    nome: str | None = Query(None),
+    inativo: str | None = Query(None),
+    include_inactive: bool = Query(True),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    result = usuario_service.list_active(db, page, size)
+    result = usuario_service.list_usuarios(
+        db,
+        page=page,
+        size=size,
+        nome=nome,
+        inativo=inativo,
+        include_inactive=include_inactive
+    )
     result["items"] = [
         UsuarioResponse.model_validate(u).model_dump() for u in result["items"]
     ]
@@ -35,7 +45,7 @@ def get_usuario(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    result = usuario_service.get_by_id(db, id)
+    result = usuario_service.get_by_id(db, id, include_inactive=True)
     return {
         "success": True,
         "message": "Usuário encontrado",
@@ -82,6 +92,20 @@ def deactivate_usuario(
     return {
         "success": True,
         "message": "Usuário desativado",
+        "data": UsuarioResponse.model_validate(result).model_dump(),
+    }
+
+
+@router.put("/{id}/reativar")
+def reactivate_usuario(
+    id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    result = usuario_service.reactivate(db, id)
+    return {
+        "success": True,
+        "message": "Usuário reativado",
         "data": UsuarioResponse.model_validate(result).model_dump(),
     }
 

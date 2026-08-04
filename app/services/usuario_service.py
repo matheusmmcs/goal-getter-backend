@@ -8,10 +8,40 @@ from app.schemas.usuario import UsuarioCreate, UsuarioUpdate
 from app.core.security import get_password_hash
 import math
 
-def list_active(db: Session, page: int, size: int):
-    query = db.query(Usuario).filter(Usuario.inativo == False)
+def list_usuarios(
+    db: Session,
+    page: int,
+    size: int,
+    nome: str | None = None,
+    inativo: bool | str | None = None,
+    include_inactive: bool = True
+):
+    query = db.query(Usuario)
+
+    inativo_bool = None
+    if isinstance(inativo, bool):
+        inativo_bool = inativo
+    elif isinstance(inativo, str):
+        if inativo.lower() in ("false", "0", "active", "ativo"):
+            inativo_bool = False
+        elif inativo.lower() in ("true", "1", "inactive", "inativo"):
+            inativo_bool = True
+        elif inativo.lower() in ("all", "todos", "none", ""):
+            inativo_bool = None
+
+    if inativo_bool is not None:
+        query = query.filter(Usuario.inativo == inativo_bool)
+    elif not include_inactive:
+        query = query.filter(Usuario.inativo == False)
+
+    if nome and nome.strip():
+        search_term = f"%{nome.strip()}%"
+        query = query.filter(
+            (Usuario.nome.ilike(search_term)) | (Usuario.usuario.ilike(search_term))
+        )
+
     total = query.count()
-    items = query.offset(page * size).limit(size).all()
+    items = query.order_by(Usuario.created_at.desc()).offset(page * size).limit(size).all()
     return {
         "items": items,
         "count": len(items),
@@ -20,11 +50,17 @@ def list_active(db: Session, page: int, size: int):
         "totalPages": math.ceil(total / size) if size > 0 else 0
     }
 
-def get_by_id(db: Session, user_id: UUID) -> Usuario:
-    user = db.query(Usuario).options(
+def list_active(db: Session, page: int, size: int):
+    return list_usuarios(db, page, size, include_inactive=False)
+
+def get_by_id(db: Session, user_id: UUID, include_inactive: bool = True) -> Usuario:
+    query = db.query(Usuario).options(
         selectinload(Usuario.perfis),
         selectinload(Usuario.atribuicoes)
-    ).filter(Usuario.id == user_id, Usuario.inativo == False).first()
+    ).filter(Usuario.id == user_id)
+    if not include_inactive:
+        query = query.filter(Usuario.inativo == False)
+    user = query.first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return user
@@ -40,7 +76,7 @@ def create(db: Session, data: UsuarioCreate) -> Usuario:
     return new_user
 
 def update(db: Session, user_id: UUID, data: UsuarioUpdate) -> Usuario:
-    user = get_by_id(db, user_id)
+    user = get_by_id(db, user_id, include_inactive=True)
     update_data = data.model_dump(exclude_unset=True)
     if "senha" in update_data and update_data["senha"]:
         update_data["senha"] = get_password_hash(update_data["senha"])
@@ -51,8 +87,15 @@ def update(db: Session, user_id: UUID, data: UsuarioUpdate) -> Usuario:
     return user
 
 def deactivate(db: Session, user_id: UUID):
-    user = get_by_id(db, user_id)
+    user = get_by_id(db, user_id, include_inactive=True)
     user.inativo = True
+    db.commit()
+    db.refresh(user)
+    return user
+
+def reactivate(db: Session, user_id: UUID):
+    user = get_by_id(db, user_id, include_inactive=True)
+    user.inativo = False
     db.commit()
     db.refresh(user)
     return user
