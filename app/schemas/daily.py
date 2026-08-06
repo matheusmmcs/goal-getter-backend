@@ -37,6 +37,12 @@ class DiarioConfigUpdate(BaseModel):
 
 class DiarioConfigSummaryResponse(BaseModel):
     id: UUID
+    periodo_addnota_inicio: Optional[str] = None
+    periodo_addnota_fim: Optional[str] = None
+    is_retroativo: Optional[bool] = None
+    is_permite_atrasado: Optional[bool] = None
+    is_publico_para_grupo: Optional[bool] = None
+    canal_chatmessage: Optional[str] = None
     hasRegistroHoje: bool
     grupo: Optional[GrupoResponse] = None
 

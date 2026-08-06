@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from app.models.usuario import Usuario
 from app.models.atribuicao import Atribuicao
 from app.models.perfil import Perfil
+from app.models.grupo import GrupoTrabalho
 from app.schemas.usuario import UsuarioCreate, UsuarioUpdate
 from app.core.security import get_password_hash
 import math
@@ -102,7 +103,7 @@ def reactivate(db: Session, user_id: UUID):
 
 def get_atribuicoes(db: Session, user_id: UUID):
     return db.query(Atribuicao).options(
-        selectinload(Atribuicao.grupo),
+        selectinload(Atribuicao.grupo).selectinload(GrupoTrabalho.unidade),
         selectinload(Atribuicao.nivel)
     ).filter(Atribuicao.id_usuario == user_id, Atribuicao.inativo == False).all()
 

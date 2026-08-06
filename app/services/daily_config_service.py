@@ -11,10 +11,11 @@ from app.models.grupo import GrupoTrabalho
 
 
 def get_config(db: Session, config_id: UUID):
-    """Get detailed daily config with group and group's atribuições."""
+    """Get detailed daily config with group, group's unidade and atribuições."""
     config = (
         db.query(DiarioConfig)
         .options(
+            joinedload(DiarioConfig.grupo).selectinload(GrupoTrabalho.unidade),
             joinedload(DiarioConfig.grupo)
             .selectinload(GrupoTrabalho.atribuicoes)
             .joinedload(Atribuicao.usuario),
@@ -42,7 +43,7 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
 
     config = (
         db.query(DiarioConfig)
-        .options(joinedload(DiarioConfig.grupo))
+        .options(joinedload(DiarioConfig.grupo).selectinload(GrupoTrabalho.unidade))
         .filter(DiarioConfig.id_grupo == group_id, DiarioConfig.inativo == False)
         .first()
     )
@@ -63,7 +64,7 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
         # Reload with relationship
         config = (
             db.query(DiarioConfig)
-            .options(joinedload(DiarioConfig.grupo))
+            .options(joinedload(DiarioConfig.grupo).selectinload(GrupoTrabalho.unidade))
             .filter(DiarioConfig.id == config.id)
             .first()
         )
@@ -101,6 +102,12 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
 
     return {
         "id": config.id,
+        "periodo_addnota_inicio": config.periodo_addnota_inicio,
+        "periodo_addnota_fim": config.periodo_addnota_fim,
+        "is_retroativo": config.is_retroativo,
+        "is_permite_atrasado": config.is_permite_atrasado,
+        "is_publico_para_grupo": config.is_publico_para_grupo,
+        "canal_chatmessage": config.canal_chatmessage,
         "hasRegistroHoje": has_registro_hoje,
         "grupo": config.grupo,
     }
