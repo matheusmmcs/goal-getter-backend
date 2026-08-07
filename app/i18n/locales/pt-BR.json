@@ -1,0 +1,100 @@
+{
+  "auth": {
+    "invalid_credentials": "Credenciais inválidas",
+    "user_inactive": "Usuário inativo",
+    "user_unauthorized": "Usuário não autorizado",
+    "admin_required": "Acesso restrito a administradores",
+    "session_expired": "Sessão expirada. Faça login novamente.",
+    "login_success": "Login realizado com sucesso"
+  },
+  "user": {
+    "not_found": "Usuário não encontrado",
+    "already_exists": "Já existe um usuário com este login",
+    "listed": "Usuários listados",
+    "found": "Usuário encontrado",
+    "created": "Usuário criado",
+    "updated": "Usuário atualizado",
+    "deactivated": "Usuário desativado",
+    "reactivated": "Usuário reativado",
+    "atribuicoes_found": "Atribuições encontradas",
+    "perfis_found": "Perfis encontrados"
+  },
+  "unit": {
+    "not_found": "Unidade não encontrada",
+    "listed": "Unidades listadas",
+    "found": "Unidade encontrada",
+    "created": "Unidade criada",
+    "updated": "Unidade atualizada",
+    "deactivated": "Unidade desativada"
+  },
+  "level": {
+    "not_found": "Nível não encontrado",
+    "listed": "Níveis listados",
+    "created": "Nível criado",
+    "updated": "Nível atualizado",
+    "deactivated": "Nível desativado"
+  },
+  "group": {
+    "not_found": "Grupo não encontrado",
+    "at_least_one_chief": "O grupo deve ter pelo menos 1 chefe",
+    "at_least_one_participant": "O grupo deve ter pelo menos 1 participante",
+    "user_cannot_be_both": "Um usuário não pode ser chefe e participante ao mesmo tempo",
+    "not_in_unit": "Grupo não pertence a esta unidade",
+    "listed": "Grupos listados",
+    "found": "Grupo encontrado",
+    "created": "Grupo criado",
+    "updated": "Grupo atualizado",
+    "deactivated": "Grupo desativado",
+    "created_in_unit": "Grupo criado na unidade",
+    "updated_in_unit": "Grupo atualizado na unidade"
+  },
+  "daily_config": {
+    "group_not_found": "Grupo não encontrado",
+    "not_found": "Configuração daily não encontrada",
+    "already_exists": "Este grupo já possui uma configuração de diário",
+    "retrieved": "Configuração recuperada",
+    "group_retrieved": "Configuração recuperada para o grupo",
+    "created": "Configuração criada com sucesso",
+    "updated": "Configuração atualizada com sucesso"
+  },
+  "daily_item": {
+    "config_not_found": "Configuração daily não encontrada",
+    "user_not_in_group": "Usuário não pertence a este grupo",
+    "already_exists": "Já existe um registro daily para este dia",
+    "future_date_not_allowed": "Não é possível registrar diário para datas futuras",
+    "past_date_not_allowed": "Preenchimento para datas retroativas não é permitido neste grupo",
+    "late_submission_not_allowed": "O horário de preenchimento para esta data já passou e envios atrasados não são permitidos",
+    "window_closed": "O horário de preenchimento do diário encerrou às {time} e envios atrasados não são permitidos",
+    "invalid_date": "Data inválida",
+    "not_found": "Registro daily não encontrado",
+    "invalid_annotation_type": "Tipo de anotação inválido: {type}. Use: TODAY, YESTERDAY, IMPEDIMENT",
+    "month_retrieved": "Registros do mês recuperados",
+    "day_retrieved": "Registros do dia recuperados",
+    "retrieved": "Registro recuperado",
+    "created": "Registro daily criado",
+    "updated": "Registro daily atualizado",
+    "report_generated": "Relatório gerado"
+  },
+  "schedule": {
+    "not_found": "Agendamento não encontrado",
+    "listed": "Agendamentos listados",
+    "found": "Agendamento encontrado",
+    "created": "Agendamento criado",
+    "updated": "Agendamento atualizado",
+    "deactivated": "Agendamento desativado"
+  },
+  "petrvs": {
+    "disabled": "Integração com o Petrvs está desativada",
+    "fetch_error": "Erro ao buscar dados do Petrvs",
+    "entregas_retrieved": "Entregas do Petrvs recuperadas",
+    "entregas_ativas_retrieved": "Entregas ativas do Petrvs recuperadas"
+  },
+  "common": {
+    "success": "Operação realizada com sucesso",
+    "request_error": "Ocorreu um erro na requisição",
+    "invalid_data": "Dados inválidos",
+    "invalid_request_data": "Dados de requisição inválidos",
+    "internal_error": "Ocorreu um erro interno no servidor. Tente novamente mais tarde.",
+    "access_denied": "Você não tem permissão para realizar esta operação."
+  }
+}

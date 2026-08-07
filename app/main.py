@@ -16,7 +16,12 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
 
+from fastapi import Request
+from app.core.exceptions import setup_exception_handlers
+from app.core.i18n import parse_accept_language, set_current_locale, reset_current_locale
+
 app = FastAPI(title='Goal Getter API', version='1.0.0', lifespan=lifespan)
+setup_exception_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +30,18 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+@app.middleware("http")
+async def i18n_middleware(request: Request, call_next):
+    accept_lang = request.headers.get("Accept-Language")
+    locale = parse_accept_language(accept_lang)
+    token = set_current_locale(locale)
+    try:
+        response = await call_next(request)
+        response.headers["Content-Language"] = locale
+        return response
+    finally:
+        reset_current_locale(token)
 
 # Import and register all routers
 from app.routers import auth, usuarios, unidades, niveis, grupos, daily_configs, daily_items, agendamentos, petrvs

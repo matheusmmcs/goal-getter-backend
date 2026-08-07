@@ -15,7 +15,7 @@ def get_current_user(
 ) -> Usuario:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Não foi possível validar as credenciais",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -30,13 +30,13 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     if not user.ativo or user.inativo:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inativo")
     if not user.is_autorizado:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User not authorized")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuário não autorizado")
         
     return user
 
 def require_admin(current_user: Annotated[Usuario, Depends(get_current_user)]) -> Usuario:
     if not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito a administradores")
     return current_user

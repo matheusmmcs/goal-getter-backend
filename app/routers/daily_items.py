@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.response import success_response
 from app.schemas.daily import DiarioItemCreate
 from app.services import daily_item_service
 
@@ -20,7 +21,7 @@ def get_items_month(
     current_user=Depends(get_current_user),
 ):
     data = daily_item_service.get_items_by_month(db, config_id, year, month)
-    return {"success": True, "message": "Registros do mês recuperados", "data": data}
+    return success_response(data=data, message="daily_item.month_retrieved")
 
 
 @router.get("/{config_id}/items/{year}/{month}/{day}")
@@ -33,7 +34,7 @@ def get_items_day(
     current_user=Depends(get_current_user),
 ):
     data = daily_item_service.get_items_by_day(db, config_id, year, month, day)
-    return {"success": True, "message": "Registros do dia recuperados", "data": data}
+    return success_response(data=data, message="daily_item.day_retrieved")
 
 
 @router.get("/{config_id}/items/{year}/{month}/{day}/{item_id}")
@@ -47,7 +48,7 @@ def get_item(
     current_user=Depends(get_current_user),
 ):
     data = daily_item_service.get_item_by_id(db, config_id, year, month, day, item_id)
-    return {"success": True, "message": "Registro recuperado", "data": data}
+    return success_response(data=data, message="daily_item.retrieved")
 
 
 @router.post("/{config_id}/items/{year}/{month}/{day}")
@@ -63,7 +64,7 @@ def create_item(
     data = daily_item_service.create_item(
         db, config_id, year, month, day, payload, current_user
     )
-    return {"success": True, "message": "Registro daily criado", "data": data}
+    return success_response(data=data, message="daily_item.created")
 
 
 @router.put("/{config_id}/items/{year}/{month}/{day}/{item_id}")
@@ -80,7 +81,7 @@ def update_item(
     data = daily_item_service.update_item(
         db, config_id, year, month, day, item_id, payload
     )
-    return {"success": True, "message": "Registro daily atualizado", "data": data}
+    return success_response(data=data, message="daily_item.updated")
 
 
 @router.get("/{config_id}/relatorio")
@@ -93,4 +94,4 @@ def get_report(
     current_user=Depends(get_current_user),
 ):
     data = daily_item_service.get_report(db, config_id, inicio, fim, grupo)
-    return {"success": True, "message": "Relatório gerado", "data": data}
+    return success_response(data=data, message="daily_item.report_generated")

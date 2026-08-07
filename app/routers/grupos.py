@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.response import success_response
 from app.models.usuario import Usuario
 from app.services import grupo_service
 
@@ -16,14 +17,14 @@ def list_grupos(
     current_user: Usuario = Depends(get_current_user)
 ):
     result = grupo_service.list_all(db, page, size)
-    return {"success": True, "message": "Grupos listados", "data": result}
+    return success_response(data=result, message="group.listed")
 
 @router.get("/{id}")
 def get_grupo(id: UUID, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
     result = grupo_service.get_by_id(db, id)
-    return {"success": True, "message": "Grupo encontrado", "data": result}
+    return success_response(data=result, message="group.found")
 
 @router.put("/{id}/desativar")
 def deactivate_grupo(id: UUID, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
     result = grupo_service.deactivate(db, id)
-    return {"success": True, "message": "Grupo desativado", "data": result}
+    return success_response(data=result, message="group.deactivated")

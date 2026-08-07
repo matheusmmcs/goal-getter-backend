@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_admin
+from app.core.response import success_response
 from app.schemas.usuario import (
     UsuarioCreate,
     UsuarioResponse,
@@ -36,7 +37,7 @@ def list_usuarios(
     result["items"] = [
         UsuarioResponse.model_validate(u).model_dump() for u in result["items"]
     ]
-    return {"success": True, "message": "Usuários listados", "data": result}
+    return success_response(data=result, message="user.listed")
 
 
 @router.get("/{id}")
@@ -46,11 +47,10 @@ def get_usuario(
     current_user=Depends(get_current_user),
 ):
     result = usuario_service.get_by_id(db, id, include_inactive=True)
-    return {
-        "success": True,
-        "message": "Usuário encontrado",
-        "data": UsuarioResponse.model_validate(result).model_dump(),
-    }
+    return success_response(
+        data=UsuarioResponse.model_validate(result).model_dump(),
+        message="user.found",
+    )
 
 
 @router.post("/")
@@ -60,11 +60,10 @@ def create_usuario(
     current_user=Depends(require_admin),
 ):
     result = usuario_service.create(db, data)
-    return {
-        "success": True,
-        "message": "Usuário criado",
-        "data": UsuarioResponse.model_validate(result).model_dump(),
-    }
+    return success_response(
+        data=UsuarioResponse.model_validate(result).model_dump(),
+        message="user.created",
+    )
 
 
 @router.put("/{id}")
@@ -75,11 +74,10 @@ def update_usuario(
     current_user=Depends(get_current_user),
 ):
     result = usuario_service.update(db, id, data)
-    return {
-        "success": True,
-        "message": "Usuário atualizado",
-        "data": UsuarioResponse.model_validate(result).model_dump(),
-    }
+    return success_response(
+        data=UsuarioResponse.model_validate(result).model_dump(),
+        message="user.updated",
+    )
 
 
 @router.put("/{id}/desativar")
@@ -89,11 +87,10 @@ def deactivate_usuario(
     current_user=Depends(get_current_user),
 ):
     result = usuario_service.deactivate(db, id)
-    return {
-        "success": True,
-        "message": "Usuário desativado",
-        "data": UsuarioResponse.model_validate(result).model_dump(),
-    }
+    return success_response(
+        data=UsuarioResponse.model_validate(result).model_dump(),
+        message="user.deactivated",
+    )
 
 
 @router.put("/{id}/reativar")
@@ -103,11 +100,10 @@ def reactivate_usuario(
     current_user=Depends(get_current_user),
 ):
     result = usuario_service.reactivate(db, id)
-    return {
-        "success": True,
-        "message": "Usuário reativado",
-        "data": UsuarioResponse.model_validate(result).model_dump(),
-    }
+    return success_response(
+        data=UsuarioResponse.model_validate(result).model_dump(),
+        message="user.reactivated",
+    )
 
 
 @router.get("/{id}/atribuicoes")
@@ -117,7 +113,7 @@ def get_user_atribuicoes(
     current_user=Depends(get_current_user),
 ):
     result = usuario_service.get_atribuicoes(db, id)
-    return {"success": True, "message": "Atribuições encontradas", "data": result}
+    return success_response(data=result, message="user.atribuicoes_found")
 
 
 @router.get("/{id}/perfis")
@@ -127,4 +123,4 @@ def get_user_perfis(
     current_user=Depends(get_current_user),
 ):
     result = usuario_service.get_perfis(db, id)
-    return {"success": True, "message": "Perfis encontrados", "data": result}
+    return success_response(data=result, message="user.perfis_found")

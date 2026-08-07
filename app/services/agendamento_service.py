@@ -18,7 +18,7 @@ def list_all(db: Session, page: int, size: int):
 def get_by_id(db: Session, id: str):
     item = db.query(Agendamento).filter(Agendamento.id == id, Agendamento.inativo == False).first()
     if not item:
-        raise HTTPException(status_code=404, detail="Agendamento not found")
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
     return item
 
 def create(db: Session, data: dict):

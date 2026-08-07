@@ -1,0 +1,100 @@
+{
+  "auth": {
+    "invalid_credentials": "Invalid credentials",
+    "user_inactive": "Inactive user",
+    "user_unauthorized": "Unauthorized user",
+    "admin_required": "Admin privileges required",
+    "session_expired": "Session expired. Please log in again.",
+    "login_success": "Login successful"
+  },
+  "user": {
+    "not_found": "User not found",
+    "already_exists": "A user with this login already exists",
+    "listed": "Users listed",
+    "found": "User found",
+    "created": "User created",
+    "updated": "User updated",
+    "deactivated": "User deactivated",
+    "reactivated": "User reactivated",
+    "atribuicoes_found": "Assignments found",
+    "perfis_found": "Profiles found"
+  },
+  "unit": {
+    "not_found": "Unit not found",
+    "listed": "Units listed",
+    "found": "Unit found",
+    "created": "Unit created",
+    "updated": "Unit updated",
+    "deactivated": "Unit deactivated"
+  },
+  "level": {
+    "not_found": "Level not found",
+    "listed": "Levels listed",
+    "created": "Level created",
+    "updated": "Level updated",
+    "deactivated": "Level deactivated"
+  },
+  "group": {
+    "not_found": "Group not found",
+    "at_least_one_chief": "The group must have at least 1 chief",
+    "at_least_one_participant": "The group must have at least 1 participant",
+    "user_cannot_be_both": "A user cannot be both a chief and a participant at the same time",
+    "not_in_unit": "Group does not belong to this unit",
+    "listed": "Groups listed",
+    "found": "Group found",
+    "created": "Group created",
+    "updated": "Group updated",
+    "deactivated": "Group deactivated",
+    "created_in_unit": "Group created in unit",
+    "updated_in_unit": "Group updated in unit"
+  },
+  "daily_config": {
+    "group_not_found": "Group not found",
+    "not_found": "Daily configuration not found",
+    "already_exists": "This group already has a daily configuration",
+    "retrieved": "Configuration retrieved",
+    "group_retrieved": "Configuration retrieved for group",
+    "created": "Configuration created successfully",
+    "updated": "Configuration updated successfully"
+  },
+  "daily_item": {
+    "config_not_found": "Daily configuration not found",
+    "user_not_in_group": "User does not belong to this group",
+    "already_exists": "A daily entry already exists for this day",
+    "future_date_not_allowed": "Cannot log daily for future dates",
+    "past_date_not_allowed": "Retroactive submission is not allowed in this group",
+    "late_submission_not_allowed": "Submission window for this date has closed and late submissions are not allowed",
+    "window_closed": "Submission window ended at {time} and late submissions are not allowed",
+    "invalid_date": "Invalid date",
+    "not_found": "Daily record not found",
+    "invalid_annotation_type": "Invalid annotation type: {type}. Use: TODAY, YESTERDAY, IMPEDIMENT",
+    "month_retrieved": "Month records retrieved",
+    "day_retrieved": "Day records retrieved",
+    "retrieved": "Record retrieved",
+    "created": "Daily record created",
+    "updated": "Daily record updated",
+    "report_generated": "Report generated"
+  },
+  "schedule": {
+    "not_found": "Schedule not found",
+    "listed": "Schedules listed",
+    "found": "Schedule found",
+    "created": "Schedule created",
+    "updated": "Schedule updated",
+    "deactivated": "Schedule deactivated"
+  },
+  "petrvs": {
+    "disabled": "Petrvs integration is disabled",
+    "fetch_error": "Error fetching data from Petrvs",
+    "entregas_retrieved": "Petrvs deliveries retrieved",
+    "entregas_ativas_retrieved": "Active Petrvs deliveries retrieved"
+  },
+  "common": {
+    "success": "Operation completed successfully",
+    "request_error": "A request error occurred",
+    "invalid_data": "Invalid data",
+    "invalid_request_data": "Invalid request data",
+    "internal_error": "An internal server error occurred. Please try again later.",
+    "access_denied": "You do not have permission to perform this operation."
+  }
+}
