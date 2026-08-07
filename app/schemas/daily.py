@@ -53,7 +53,7 @@ class AnotacaoCreate(BaseModel):
     petrvs_entrega_desc: Optional[str] = None
 
 class DiarioItemCreate(BaseModel):
-    is_atrasado: bool = False
+    is_atrasado: Optional[bool] = None
     notas: dict[str, list[AnotacaoCreate]]
 
 class DiarioItemUpdate(DiarioItemCreate):

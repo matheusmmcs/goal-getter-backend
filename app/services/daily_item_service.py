@@ -1,6 +1,6 @@
 import calendar
 import logging
-from datetime import date
+from datetime import date, datetime, time
 from uuid import UUID
 
 import httpx
@@ -17,6 +17,46 @@ from app.models.enums import TipoDiarioItemAnotacaoEnum
 from app.schemas.daily import DiarioItemCreate
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_and_compute_is_atrasado(config: DiarioConfig, target_date: date) -> bool:
+    """Validate submission date/time against group config and compute is_atrasado automatically based on server time."""
+    now = now_in_app_timezone()
+    today = now.date()
+
+    if target_date > today:
+        raise HTTPException(
+            status_code=400, detail="Não é possível registrar diário para datas futuras"
+        )
+
+    if target_date < today:
+        if not config.is_retroativo:
+            raise HTTPException(
+                status_code=400,
+                detail="Preenchimento para datas retroativas não é permitido neste grupo",
+            )
+        if config.is_permite_atrasado:
+            return True
+        raise HTTPException(
+            status_code=400,
+            detail="O horário de preenchimento para esta data já passou e envios atrasados não são permitidos",
+        )
+
+    # target_date == today
+    if config.periodo_addnota_fim:
+        try:
+            fim_time = datetime.strptime(config.periodo_addnota_fim.strip(), "%H:%M").time()
+            if now.time() > fim_time:
+                if config.is_permite_atrasado:
+                    return True
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"O horário de preenchimento do diário encerrou às {config.periodo_addnota_fim} e envios atrasados não são permitidos",
+                )
+        except ValueError:
+            pass
+
+    return False
 
 
 def _build_date(year: int, month: int, day: int) -> date:
@@ -163,12 +203,15 @@ def create_item(
             detail="Já existe um registro daily para este dia",
         )
 
-    # 4. Create item
+    # 4. Compute is_atrasado automatically based on server time and config
+    is_atrasado = _validate_and_compute_is_atrasado(config, target_date)
+
+    # Create item
     new_item = DiarioItem(
         id_diario_config=config_id,
         id_atribuicao_usuario=atribuicao.id,
         data_diario=target_date,
-        is_atrasado=data.is_atrasado,
+        is_atrasado=is_atrasado,
     )
     db.add(new_item)
     db.flush()
@@ -228,6 +271,7 @@ def update_item(
 ) -> DiarioItem:
     item = (
         db.query(DiarioItem)
+        .options(joinedload(DiarioItem.config))
         .filter(
             DiarioItem.id == item_id,
             DiarioItem.id_diario_config == config_id,
@@ -238,8 +282,15 @@ def update_item(
     if not item:
         raise HTTPException(status_code=404, detail="Registro daily não encontrado")
 
-    # Update is_atrasado
-    item.is_atrasado = data.is_atrasado
+    config = item.config or db.query(DiarioConfig).filter(DiarioConfig.id == config_id).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="Configuração daily não encontrada")
+
+    target_date = _build_date(year, month, day)
+
+    # Validate window and update is_atrasado automatically
+    is_atrasado = _validate_and_compute_is_atrasado(config, target_date)
+    item.is_atrasado = is_atrasado
 
     # Get existing active notes
     existing_notas = (
