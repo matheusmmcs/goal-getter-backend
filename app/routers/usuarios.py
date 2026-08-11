@@ -8,6 +8,7 @@ from app.core.dependencies import get_current_user, require_admin
 from app.core.response import success_response
 from app.schemas.usuario import (
     UsuarioCreate,
+    UsuarioDetailResponse,
     UsuarioResponse,
     UsuarioUpdate,
 )
@@ -48,7 +49,7 @@ def get_usuario(
 ):
     result = usuario_service.get_by_id(db, id, include_inactive=True)
     return success_response(
-        data=UsuarioResponse.model_validate(result).model_dump(),
+        data=UsuarioDetailResponse.model_validate(result).model_dump(),
         message="user.found",
     )
 
@@ -71,7 +72,7 @@ def update_usuario(
     id: UUID,
     data: UsuarioUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_admin),
 ):
     result = usuario_service.update(db, id, data)
     return success_response(
@@ -84,7 +85,7 @@ def update_usuario(
 def deactivate_usuario(
     id: UUID,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_admin),
 ):
     result = usuario_service.deactivate(db, id)
     return success_response(
@@ -97,7 +98,7 @@ def deactivate_usuario(
 def reactivate_usuario(
     id: UUID,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_admin),
 ):
     result = usuario_service.reactivate(db, id)
     return success_response(

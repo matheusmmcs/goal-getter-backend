@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.unidade import Unidade
     from app.models.atribuicao import Atribuicao
     from app.models.diario_config import DiarioConfig
+    from app.models.organizacao import Organizacao
 
 
 class GrupoTrabalho(Base):
@@ -19,11 +20,14 @@ class GrupoTrabalho(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nome: Mapped[str] = mapped_column(String, nullable=False)
     id_unidade: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('unidades.id'))
+    id_organizacao: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey('organizacoes.id'), nullable=True)
     inativo: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_in_app_timezone)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     unidade: Mapped["Unidade"] = relationship('Unidade', back_populates='grupos')
+    organizacao: Mapped[Optional["Organizacao"]] = relationship('Organizacao', back_populates='grupos')
     atribuicoes: Mapped[List["Atribuicao"]] = relationship('Atribuicao', back_populates='grupo')
     diario_configs: Mapped[List["DiarioConfig"]] = relationship('DiarioConfig', back_populates='grupo')
+

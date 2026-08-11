@@ -8,6 +8,7 @@ class UnidadeCreate(BaseModel):
     sigla: Optional[str] = None
     codigo: Optional[int] = None
     id_unidade_pai: Optional[UUID] = None
+    id_organizacao: Optional[UUID] = None
     inativo: bool = False
 
 class UnidadeUpdate(BaseModel):
@@ -16,6 +17,7 @@ class UnidadeUpdate(BaseModel):
     sigla: Optional[str] = None
     codigo: Optional[int] = None
     id_unidade_pai: Optional[UUID] = None
+    id_organizacao: Optional[UUID] = None
     inativo: Optional[bool] = None
 
 class UnidadeResponse(BaseModel):
@@ -25,6 +27,8 @@ class UnidadeResponse(BaseModel):
     sigla: Optional[str] = None
     codigo: Optional[int] = None
     id_unidade_pai: Optional[UUID] = None
+    id_organizacao: Optional[UUID] = None
     inativo: bool
 
     model_config = ConfigDict(from_attributes=True)
+

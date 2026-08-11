@@ -40,3 +40,32 @@ def require_admin(current_user: Annotated[Usuario, Depends(get_current_user)]) -
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito a administradores")
     return current_user
+
+def get_current_organization_id(
+    x_organization_id: Annotated[str | None, Depends(lambda: None)] = None,
+) -> str | None:
+    return x_organization_id
+
+def require_org_gestor(
+    org_id: str,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)]
+) -> Usuario:
+    if current_user.is_admin:
+        return current_user
+
+    from app.models.usuario_organizacao import UsuarioOrganizacao
+    from app.models.enums import PapelOrganizacaoEnum
+
+    vinculo = db.query(UsuarioOrganizacao).filter(
+        UsuarioOrganizacao.id_organizacao == org_id,
+        UsuarioOrganizacao.id_usuario == current_user.id,
+        UsuarioOrganizacao.inativo == False,
+        UsuarioOrganizacao.papel_organizacao == PapelOrganizacaoEnum.GESTOR
+    ).first()
+
+    if not vinculo:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso permitido apenas a Gestores da Organização ou Administradores")
+
+    return current_user
+

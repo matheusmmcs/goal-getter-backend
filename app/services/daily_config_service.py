@@ -48,6 +48,14 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
         .first()
     )
 
+    # Fallback: tentar obter configuração herdada da Unidade do grupo
+    if not config and grupo.id_unidade:
+        config = (
+            db.query(DiarioConfig)
+            .filter(DiarioConfig.id_unidade == grupo.id_unidade, DiarioConfig.inativo == False)
+            .first()
+        )
+
     # Auto-create default config if none exists
     if not config:
         config = DiarioConfig(

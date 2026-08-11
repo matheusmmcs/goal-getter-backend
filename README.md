@@ -67,6 +67,26 @@ poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ---
 
+### 🗄️ Alterações na Modelagem do Banco (Alembic)
+
+Sempre que um modelo SQLAlchemy for **criado ou modificado** em `app/models/` (ex: adição de novas colunas, novas tabelas ou alteração de relacionamentos):
+
+1. **Gerar script de migração**:
+   ```bash
+   poetry run alembic revision -m "descricao_da_mudanca"
+   # ou com autogeração se o banco local estiver ativo:
+   poetry run alembic revision --autogenerate -m "descricao_da_mudanca"
+   ```
+2. **Implementar as funções `upgrade()` e `downgrade()`** no novo arquivo em `alembic/versions/YYYYMMDD_XXXX_descricao.py`.
+3. **Aplicar a migração**:
+   ```bash
+   poetry run alembic upgrade head
+   ```
+
+> 💡 Na inicialização da aplicação (Docker ou local), se `DB_RUN_MIGRATIONS=true` estiver configurado no `.env`, o sistema executará o `alembic upgrade head` automaticamente.
+
+---
+
 ## 🔐 Credenciais Padrão
 
 Na primeira execução (com `DB_RUN_SEED=true`), o sistema cria automaticamente:
@@ -190,6 +210,9 @@ app/
 
 | Arquivo | Conteúdo |
 |---|---|
-| [AGENTS.md](./AGENTS.md) | Regras de negócio, glossário de domínio, fluxos, permissões |
-| [AGENTS-BACKEND.md](./AGENTS-BACKEND.md) | Diretrizes técnicas, padrões de código, arquitetura |
+| [AGENTS.md](./AGENTS.md) | Regras de negócio, glossário, matriz de permissões e soft delete com índices parciais |
+| [AGENTS-BACKEND.md](./AGENTS-BACKEND.md) | Diretrizes técnicas, APScheduler, NivelCodigoEnum, ORM e Alembic |
 | [Swagger UI](http://localhost:8881/docs) | Documentação interativa da API (`http://localhost:8881/docs` via Docker ou `http://localhost:8000/docs` local) |
+
+> 💡 **Soft Delete & Unicidade**: Todas as tabelas com soft delete (`inativo = True`) utilizam **Índices Parciais no PostgreSQL** (`WHERE inativo = false`) para prevenir erros de unicidade ao recriar registros.
+> 💡 **Motor de Agendamentos**: As notificações e cron jobs da tabela `agendamentos` são executados pelo motor interno **APScheduler**, inicializado no ciclo de vida da API com histórico em `agendamentos_historico`.

@@ -1,10 +1,12 @@
 from uuid import UUID
+from typing import Any
 from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException
 from app.models.grupo import GrupoTrabalho
 from app.models.atribuicao import Atribuicao
 from app.models.nivel import Nivel
 from app.schemas.grupo import GrupoCreate, GrupoUpdate
+from app.models.enums import NivelCodigoEnum
 import math
 
 
@@ -54,13 +56,13 @@ def _assign_users_to_group(
             detail="Um usuário não pode ser chefe e participante ao mesmo tempo",
         )
 
-    nivel_chefe = db.query(Nivel).filter(Nivel.valor == 201).first()
-    nivel_participante = db.query(Nivel).filter(Nivel.valor == 202).first()
+    nivel_chefe = db.query(Nivel).filter(Nivel.valor == NivelCodigoEnum.GESTOR_GRUPO.value).first()
+    nivel_participante = db.query(Nivel).filter(Nivel.valor == NivelCodigoEnum.PARTICIPANTE.value).first()
 
     if not nivel_chefe or not nivel_participante:
         raise HTTPException(
             status_code=500,
-            detail="Níveis 201 (Gestor) ou 202 (Participante) não configurados no sistema",
+            detail=f"Níveis {NivelCodigoEnum.GESTOR_GRUPO.value} (Gestor) ou {NivelCodigoEnum.PARTICIPANTE.value} (Participante) não configurados no sistema",
         )
 
     existing_atribuicoes = (
@@ -68,11 +70,12 @@ def _assign_users_to_group(
     )
     existing_map = {str(a.id_usuario): a for a in existing_atribuicoes}
 
-    target_assignments: dict[str, UUID] = {}
+    target_assignments: dict[str, Any] = {}
     for uid in usuarios_chefes:
         target_assignments[str(uid)] = nivel_chefe.id
     for uid in usuarios_participantes:
         target_assignments[str(uid)] = nivel_participante.id
+
 
     # Create or reactivate assignments
     for uid_str, nivel_id in target_assignments.items():
@@ -95,13 +98,19 @@ def _assign_users_to_group(
 
 
 def create_in_unidade(db: Session, unidade_id: UUID, data: GrupoCreate) -> GrupoTrabalho:
+    from app.models.unidade import Unidade
+    unidade = db.query(Unidade).filter(Unidade.id == unidade_id).first()
+    id_org = unidade.id_organizacao if unidade else None
+
     novo_grupo = GrupoTrabalho(
         nome=data.nome,
         id_unidade=unidade_id,
+        id_organizacao=id_org,
         inativo=data.inativo,
     )
     db.add(novo_grupo)
     db.flush()
+
 
     _assign_users_to_group(
         db,

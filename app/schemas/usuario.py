@@ -3,6 +3,8 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 from app.schemas.unidade import UnidadeResponse
 
+from datetime import datetime
+
 class UsuarioBase(BaseModel):
     usuario: str
     nome: str
@@ -13,6 +15,13 @@ class UsuarioCreate(UsuarioBase):
     senha: str
     is_admin: bool = False
     is_autorizado: bool = False
+
+class UsuarioRegister(BaseModel):
+    usuario: str
+    nome: str
+    senha: str
+    email: Optional[str] = None
+    cpf: Optional[str] = None
 
 class UsuarioUpdate(BaseModel):
     usuario: Optional[str] = None
@@ -29,6 +38,10 @@ class UsuarioResponse(UsuarioBase):
     is_admin: bool
     is_autorizado: bool
     inativo: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    data_autorizacao: Optional[datetime] = None
+    data_inativacao: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

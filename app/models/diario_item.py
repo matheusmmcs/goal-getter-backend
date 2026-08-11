@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import Boolean, DateTime, Date, ForeignKey
+from sqlalchemy import Boolean, DateTime, Date, ForeignKey, Index, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -15,6 +15,15 @@ if TYPE_CHECKING:
 
 class DiarioItem(Base):
     __tablename__ = 'diario_items'
+    __table_args__ = (
+        Index(
+            'uix_diario_item_active',
+            'id_diario_config', 'id_atribuicao_usuario', 'data_diario',
+            unique=True,
+            postgresql_where=text("inativo = false"),
+            sqlite_where=text("inativo = false")
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     id_diario_config: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('diario_configs.id'))

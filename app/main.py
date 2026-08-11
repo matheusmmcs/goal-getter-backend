@@ -9,12 +9,42 @@ from app.core.logging import setup_logging
 async def lifespan(app: FastAPI):
     # Startup
     setup_logging()
+    if settings.DB_RUN_MIGRATIONS:
+        try:
+            import logging
+            from alembic.config import Config
+            from alembic import command
+            alembic_cfg = Config("alembic.ini")
+            alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+            command.upgrade(alembic_cfg, "head")
+            logging.getLogger("alembic").info("Alembic database migrations applied successfully.")
+        except Exception as e:
+            import logging
+            logging.getLogger("alembic").error(f"Error during Alembic auto-upgrade: {e}", exc_info=True)
+
+
+
     Base.metadata.create_all(bind=engine)
     if settings.DB_RUN_SEED:
         from app.seeder import run_seed
         run_seed()
+
+    # Iniciar motor de agendamentos (scheduler)
+    try:
+        from app.services.scheduler_service import start_scheduler, shutdown_scheduler
+        start_scheduler()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Erro ao inicializar motor de agendamentos: {e}", exc_info=True)
+
     yield
+
     # Shutdown
+    try:
+        from app.services.scheduler_service import shutdown_scheduler
+        shutdown_scheduler()
+    except Exception:
+        pass
 
 from fastapi import Request
 from app.core.exceptions import setup_exception_handlers
@@ -44,9 +74,11 @@ async def i18n_middleware(request: Request, call_next):
         reset_current_locale(token)
 
 # Import and register all routers
-from app.routers import auth, usuarios, unidades, niveis, grupos, daily_configs, daily_items, agendamentos, petrvs
+from app.routers import auth, usuarios, unidades, niveis, grupos, daily_configs, daily_items, agendamentos, petrvs, organizacoes, system
 
 app.include_router(auth.router, prefix='/api/auth', tags=['Auth'])
+app.include_router(system.router, prefix='/api', tags=['System'])
+app.include_router(organizacoes.router, prefix='/api', tags=['Organizações'])
 app.include_router(usuarios.router, prefix='/api/usuarios', tags=['Usuarios'])
 app.include_router(unidades.router, prefix='/api/unidades', tags=['Unidades'])
 app.include_router(niveis.router, prefix='/api/niveis', tags=['Niveis'])
@@ -55,3 +87,4 @@ app.include_router(daily_configs.router, prefix='/api/daily/configs', tags=['Dai
 app.include_router(daily_items.router, prefix='/api/daily/configs', tags=['Daily Items'])
 app.include_router(agendamentos.router, prefix='/api/daily/agendamentos', tags=['Agendamentos'])
 app.include_router(petrvs.router, prefix='/api/petrvs', tags=['Petrvs'])
+

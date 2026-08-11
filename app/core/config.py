@@ -6,7 +6,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = 'HS256'
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     APP_TIMEZONE: str = 'America/Fortaleza'
+    DB_RUN_MIGRATIONS: bool = True
     DB_RUN_SEED: bool = True
+
     BACKEND_LOGS_ENABLED: bool = True
     BACKEND_LOG_LEVEL: str = 'INFO'
     BACKEND_LOG_DIR: str = 'logs'

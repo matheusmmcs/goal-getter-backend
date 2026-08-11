@@ -1,20 +1,26 @@
 from uuid import UUID
+from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.unidade import Unidade
 import math
 
-def list_all(db: Session, page: int, size: int):
+
+def list_all(db: Session, page: int, size: int, id_organizacao: Optional[UUID] = None):
     query = db.query(Unidade).filter(Unidade.inativo == False)
+    if id_organizacao:
+        query = query.filter(Unidade.id_organizacao == id_organizacao)
     total = query.count()
     items = query.offset(page * size).limit(size).all()
     return {
         "items": items,
         "count": len(items),
+        "total": total,
         "page": page,
         "size": size,
         "totalPages": math.ceil(total / size) if size > 0 else 0
     }
+
 
 def get_by_id(db: Session, id: UUID) -> Unidade:
     unidade = db.query(Unidade).filter(Unidade.id == id, Unidade.inativo == False).first()

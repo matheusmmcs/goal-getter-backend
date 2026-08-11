@@ -15,11 +15,13 @@ router = APIRouter(tags=["Unidades"])
 def list_unidades(
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
+    id_organizacao: UUID | None = Query(None),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    result = unidade_service.list_all(db, page, size)
+    result = unidade_service.list_all(db, page, size, id_organizacao)
     return success_response(data=result, message="unit.listed")
+
 
 @router.get("/{id}")
 def get_unidade(id: UUID, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):

@@ -66,10 +66,19 @@ def get_by_id(db: Session, user_id: UUID, include_inactive: bool = True) -> Usua
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return user
 
+from app.core.timezone import now_in_app_timezone
+
 def create(db: Session, data: UsuarioCreate) -> Usuario:
     user_data = data.model_dump()
     if "senha" in user_data and user_data["senha"]:
         user_data["senha"] = get_password_hash(user_data["senha"])
+    
+    now = now_in_app_timezone()
+    if user_data.get("is_autorizado"):
+        user_data["data_autorizacao"] = now
+    if user_data.get("inativo"):
+        user_data["data_inativacao"] = now
+
     new_user = Usuario(**user_data)
     db.add(new_user)
     db.commit()
@@ -81,6 +90,22 @@ def update(db: Session, user_id: UUID, data: UsuarioUpdate) -> Usuario:
     update_data = data.model_dump(exclude_unset=True)
     if "senha" in update_data and update_data["senha"]:
         update_data["senha"] = get_password_hash(update_data["senha"])
+    
+    now = now_in_app_timezone()
+    update_data["updated_at"] = now
+
+    if "is_autorizado" in update_data:
+        if update_data["is_autorizado"] and not user.is_autorizado:
+            update_data["data_autorizacao"] = now
+        elif not update_data["is_autorizado"]:
+            update_data["data_autorizacao"] = None
+
+    if "inativo" in update_data:
+        if update_data["inativo"] and not user.inativo:
+            update_data["data_inativacao"] = now
+        elif not update_data["inativo"]:
+            update_data["data_inativacao"] = None
+
     for key, value in update_data.items():
         setattr(user, key, value)
     db.commit()
@@ -89,14 +114,20 @@ def update(db: Session, user_id: UUID, data: UsuarioUpdate) -> Usuario:
 
 def deactivate(db: Session, user_id: UUID):
     user = get_by_id(db, user_id, include_inactive=True)
+    now = now_in_app_timezone()
     user.inativo = True
+    user.data_inativacao = now
+    user.updated_at = now
     db.commit()
     db.refresh(user)
     return user
 
 def reactivate(db: Session, user_id: UUID):
     user = get_by_id(db, user_id, include_inactive=True)
+    now = now_in_app_timezone()
     user.inativo = False
+    user.data_inativacao = None
+    user.updated_at = now
     db.commit()
     db.refresh(user)
     return user

@@ -10,6 +10,7 @@ from app.core.timezone import now_in_app_timezone
 if TYPE_CHECKING:
     from app.models.perfil import Perfil
     from app.models.atribuicao import Atribuicao
+    from app.models.usuario_organizacao import UsuarioOrganizacao
 
 
 class Usuario(Base):
@@ -29,10 +30,14 @@ class Usuario(Base):
     inativo: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_in_app_timezone)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_autorizacao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_inativacao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     perfis: Mapped[List["Perfil"]] = relationship('Perfil', back_populates='usuario')
     atribuicoes: Mapped[List["Atribuicao"]] = relationship('Atribuicao', back_populates='usuario')
+    organizacoes_vinculos: Mapped[List["UsuarioOrganizacao"]] = relationship('UsuarioOrganizacao', back_populates='usuario')
+
 
     def __iter__(self):
         """Custom iterator that excludes senha from dict() serialization."""
