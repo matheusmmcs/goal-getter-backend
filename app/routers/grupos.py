@@ -2,7 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_current_organization_id
 from app.core.response import success_response
 from app.models.usuario import Usuario
 from app.services import grupo_service
@@ -13,10 +13,11 @@ router = APIRouter(tags=["Grupos"])
 def list_grupos(
     page: int = Query(0, ge=0),
     size: int = Query(10, ge=1, le=100),
+    id_organizacao: UUID | None = Depends(get_current_organization_id),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    result = grupo_service.list_all(db, page, size)
+    result = grupo_service.list_all(db, page, size, id_organizacao)
     return success_response(data=result, message="group.listed")
 
 @router.get("/{id}")

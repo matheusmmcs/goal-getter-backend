@@ -15,9 +15,19 @@ def list_usuarios(
     size: int,
     nome: str | None = None,
     inativo: bool | str | None = None,
-    include_inactive: bool = True
+    include_inactive: bool = True,
+    id_organizacao: UUID | None = None
 ):
     query = db.query(Usuario)
+
+    if id_organizacao:
+        from app.models.usuario_organizacao import UsuarioOrganizacao
+        query = query.join(
+            UsuarioOrganizacao,
+            (UsuarioOrganizacao.id_usuario == Usuario.id) &
+            (UsuarioOrganizacao.id_organizacao == id_organizacao) &
+            (UsuarioOrganizacao.inativo == False)
+        )
 
     inativo_bool = None
     if isinstance(inativo, bool):
@@ -132,14 +142,27 @@ def reactivate(db: Session, user_id: UUID):
     db.refresh(user)
     return user
 
-def get_atribuicoes(db: Session, user_id: UUID):
-    return db.query(Atribuicao).options(
+def get_atribuicoes(db: Session, user_id: UUID, id_organizacao: UUID | None = None):
+    query = db.query(Atribuicao).options(
         selectinload(Atribuicao.grupo).selectinload(GrupoTrabalho.unidade),
         selectinload(Atribuicao.nivel)
-    ).filter(Atribuicao.id_usuario == user_id, Atribuicao.inativo == False).all()
+    ).filter(Atribuicao.id_usuario == user_id, Atribuicao.inativo == False)
+    if id_organizacao:
+        from app.models.unidade import Unidade
+        query = query.join(GrupoTrabalho, Atribuicao.id_grupo == GrupoTrabalho.id).filter(
+            (GrupoTrabalho.id_organizacao == id_organizacao) |
+            (GrupoTrabalho.unidade.has(Unidade.id_organizacao == id_organizacao))
+        )
+    return query.all()
 
-def get_perfis(db: Session, user_id: UUID):
-    return db.query(Perfil).options(
+def get_perfis(db: Session, user_id: UUID, id_organizacao: UUID | None = None):
+    query = db.query(Perfil).options(
         selectinload(Perfil.unidade),
         selectinload(Perfil.nivel)
-    ).filter(Perfil.id_usuario == user_id, Perfil.inativo == False).all()
+    ).filter(Perfil.id_usuario == user_id, Perfil.inativo == False)
+    if id_organizacao:
+        from app.models.unidade import Unidade
+        query = query.join(Unidade, Perfil.id_unidade == Unidade.id).filter(
+            Unidade.id_organizacao == id_organizacao
+        )
+    return query.all()

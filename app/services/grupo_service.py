@@ -3,6 +3,7 @@ from typing import Any
 from sqlalchemy.orm import Session, selectinload
 from fastapi import HTTPException
 from app.models.grupo import GrupoTrabalho
+from app.models.unidade import Unidade
 from app.models.atribuicao import Atribuicao
 from app.models.nivel import Nivel
 from app.schemas.grupo import GrupoCreate, GrupoUpdate
@@ -10,10 +11,16 @@ from app.models.enums import NivelCodigoEnum
 import math
 
 
-def list_all(db: Session, page: int, size: int):
+def list_all(db: Session, page: int, size: int, id_organizacao: UUID | None = None):
     query = db.query(GrupoTrabalho).options(
         selectinload(GrupoTrabalho.unidade)
     ).filter(GrupoTrabalho.inativo == False)
+    if id_organizacao:
+        from app.models.unidade import Unidade
+        query = query.filter(
+            (GrupoTrabalho.id_organizacao == id_organizacao) |
+            (GrupoTrabalho.unidade.has(Unidade.id_organizacao == id_organizacao))
+        )
     total = query.count()
     items = query.offset(page * size).limit(size).all()
     return {
@@ -41,6 +48,7 @@ def _assign_users_to_group(
     grupo_id: UUID,
     usuarios_chefes: list[UUID],
     usuarios_participantes: list[UUID],
+    id_organizacao: UUID | None = None,
 ):
     if not usuarios_chefes:
         raise HTTPException(status_code=400, detail="O grupo deve ter pelo menos 1 chefe")
@@ -55,6 +63,21 @@ def _assign_users_to_group(
             status_code=400,
             detail="Um usuário não pode ser chefe e participante ao mesmo tempo",
         )
+
+    # Validar que todos os usuários pertencem à organização quando id_organizacao fornecido
+    if id_organizacao:
+        from app.models.usuario_organizacao import UsuarioOrganizacao
+        all_user_ids = list(chefes_set.union(participantes_set))
+        valid_count = db.query(UsuarioOrganizacao).filter(
+            UsuarioOrganizacao.id_organizacao == id_organizacao,
+            UsuarioOrganizacao.id_usuario.in_(all_user_ids),
+            UsuarioOrganizacao.inativo == False
+        ).count()
+        if valid_count < len(all_user_ids):
+            raise HTTPException(
+                status_code=400,
+                detail="Todos os chefes e participantes devem pertencer à organização deste grupo",
+            )
 
     nivel_chefe = db.query(Nivel).filter(Nivel.valor == NivelCodigoEnum.GESTOR_GRUPO.value).first()
     nivel_participante = db.query(Nivel).filter(Nivel.valor == NivelCodigoEnum.PARTICIPANTE.value).first()
@@ -117,6 +140,7 @@ def create_in_unidade(db: Session, unidade_id: UUID, data: GrupoCreate) -> Grupo
         novo_grupo.id,
         data.usuarios_chefes,
         data.usuarios_participantes,
+        id_organizacao=id_org,
     )
 
     db.commit()
@@ -145,6 +169,7 @@ def update_in_unidade(
             grupo.id,
             data.usuarios_chefes,
             data.usuarios_participantes,
+            id_organizacao=grupo.id_organizacao,
         )
 
     db.commit()

@@ -74,7 +74,12 @@ app/
 - `DiarioConfig` possui relacionamento opcional com `GrupoTrabalho` (`id_grupo`) e `Unidade` (`id_unidade`).
 - O serviço `daily_config_service.py` resolve primeiro a configuração do grupo e, caso inexistente, busca a configuração herdada da `Unidade`.
 
-### 7. Migrações de Banco (Alembic)
+### 7. Isolamento Estrito de Multi-Tenancy (Organizações)
+- **Extração de Contexto**: A dependência `get_current_organization_id` em `app/core/dependencies.py` lê `X-Organization-Id` (header) e `id_organizacao` (query param) como `UUID | None`.
+- **Filtro Rigoroso**: É expressamente proibido usar `is_(None)` como fallback permissivo nas consultas de recursos (`Unidade`, `GrupoTrabalho`, `Usuario`, `Atribuicao`, `Perfil`). Apenas dados vinculados à organização solicitada devem ser retornados.
+- **Validação de Atribuição**: Ao criar ou editar grupos, todos os usuários (chefes e participantes) devem obrigatoriamente possuir vínculo ativo com a organização do grupo (`UsuarioOrganizacao`).
+
+### 8. Migrações de Banco (Alembic)
 - Qualquer alteração nos arquivos de `app/models/` exige a criação de uma migração em `alembic/versions/`.
   ```bash
   poetry run alembic revision -m "nome_da_migracao"
@@ -103,6 +108,7 @@ poetry run pytest --cov=app --cov-report=term-missing
 1. **Nunca** use `passlib` — use `bcrypt` diretamente.
 2. **Nunca** use `datetime.utcnow()` — use `now_in_app_timezone()`.
 3. **Nunca** delete fisicamente do banco — use soft delete (`inativo = True`).
-4. **Sempre** use índices únicos parciais (`WHERE inativo = false`) para chaves únicas.
-5. **Sempre** crie uma migração Alembic para alterações em `app/models/`.
-6. **Sempre** execute `pytest` antes de finalizar uma tarefa no backend.
+4. **Nunca** permita vazamento de dados entre organizações (use sempre isolamento estrito via `id_organizacao` / `X-Organization-Id`, sem fallbacks para `is_(None)`).
+5. **Sempre** use índices únicos parciais (`WHERE inativo = false`) para chaves únicas.
+6. **Sempre** crie uma migração Alembic para alterações em `app/models/`.
+7. **Sempre** execute `pytest` antes de finalizar uma tarefa no backend.

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, require_admin
+from app.core.dependencies import get_current_user, require_admin, get_current_organization_id
 from app.core.response import success_response
 from app.schemas.usuario import (
     UsuarioCreate,
@@ -24,6 +24,7 @@ def list_usuarios(
     nome: str | None = Query(None),
     inativo: str | None = Query(None),
     include_inactive: bool = Query(True),
+    id_organizacao: UUID | None = Depends(get_current_organization_id),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -33,7 +34,8 @@ def list_usuarios(
         size=size,
         nome=nome,
         inativo=inativo,
-        include_inactive=include_inactive
+        include_inactive=include_inactive,
+        id_organizacao=id_organizacao
     )
     result["items"] = [
         UsuarioResponse.model_validate(u).model_dump() for u in result["items"]
@@ -110,18 +112,20 @@ def reactivate_usuario(
 @router.get("/{id}/atribuicoes")
 def get_user_atribuicoes(
     id: UUID,
+    id_organizacao: UUID | None = Depends(get_current_organization_id),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    result = usuario_service.get_atribuicoes(db, id)
+    result = usuario_service.get_atribuicoes(db, id, id_organizacao)
     return success_response(data=result, message="user.atribuicoes_found")
 
 
 @router.get("/{id}/perfis")
 def get_user_perfis(
     id: UUID,
+    id_organizacao: UUID | None = Depends(get_current_organization_id),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    result = usuario_service.get_perfis(db, id)
+    result = usuario_service.get_perfis(db, id, id_organizacao)
     return success_response(data=result, message="user.perfis_found")

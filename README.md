@@ -105,15 +105,19 @@ Na primeira execução (com `DB_RUN_SEED=true`), o sistema cria automaticamente:
 
 | Módulo | Rota Base | Endpoints |
 |---|---|---|
-| **Auth** | `/api/auth` | Login |
-| **Usuarios** | `/api/usuarios` | CRUD, atribuições, perfis |
-| **Unidades** | `/api/unidades` | CRUD, criar grupos na unidade |
+| **Auth** | `/api/auth` | Login, dados de sessão |
+| **Organizações** | `/api/organizacoes` | CRUD, vínculos de usuários, gestão de membros por organização |
+| **Usuarios** | `/api/usuarios` | CRUD, listagem com filtro de organização, atribuições, perfis |
+| **Unidades** | `/api/unidades` | CRUD com isolamento por organização, criar grupos na unidade |
 | **Niveis** | `/api/niveis` | CRUD |
-| **Grupos** | `/api/grupos` | Listagem, detalhes, desativar |
+| **Grupos** | `/api/grupos` | Listagem com isolamento por organização, detalhes, desativar |
 | **Daily Configs** | `/api/daily/configs` | Config por ID, config por grupo |
 | **Daily Items** | `/api/daily/configs` | Items por mês/dia, CRUD, relatório |
 | **Agendamentos** | `/api/agendamentos` | CRUD |
 | **Petrvs** | `/api/petrvs` | Entregas por CPF |
+
+> 🏢 **Multi-Tenancy (Isolamento de Organizações)**:
+> As rotas autenticadas suportam o cabeçalho `X-Organization-Id: <UUID>` e o query param `?id_organizacao=<UUID>` para filtrar estritamente unidades, grupos e usuários vinculados à organização ativa.
 
 Documentação interativa completa disponível em **Swagger UI**: `http://localhost:8881/docs` (Docker Compose) ou `http://localhost:8000/docs` (Local via Poetry)
 

@@ -28,8 +28,11 @@ def get_by_id(db: Session, id: UUID) -> Unidade:
         raise HTTPException(status_code=404, detail="Unidade não encontrada")
     return unidade
 
-def create(db: Session, data) -> Unidade:
-    nova_unidade = Unidade(**data.model_dump())
+def create(db: Session, data, id_organizacao: Optional[UUID] = None) -> Unidade:
+    unidade_data = data.model_dump()
+    if id_organizacao and not unidade_data.get("id_organizacao"):
+        unidade_data["id_organizacao"] = id_organizacao
+    nova_unidade = Unidade(**unidade_data)
     db.add(nova_unidade)
     db.commit()
     db.refresh(nova_unidade)

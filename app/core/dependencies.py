@@ -41,10 +41,21 @@ def require_admin(current_user: Annotated[Usuario, Depends(get_current_user)]) -
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito a administradores")
     return current_user
 
+from uuid import UUID
+from fastapi import Header, Query
+
 def get_current_organization_id(
-    x_organization_id: Annotated[str | None, Depends(lambda: None)] = None,
-) -> str | None:
-    return x_organization_id
+    x_organization_id: str | None = Header(default=None, alias="X-Organization-Id"),
+    id_organizacao: UUID | None = Query(default=None),
+) -> UUID | None:
+    if id_organizacao:
+        return id_organizacao
+    if x_organization_id:
+        try:
+            return UUID(x_organization_id)
+        except (ValueError, TypeError):
+            return None
+    return None
 
 def require_org_gestor(
     org_id: str,

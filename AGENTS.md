@@ -1,5 +1,13 @@
 # 📋 AGENTS.md — Goal Getter Backend (Regras de Negócio)
 
+> [!IMPORTANT]
+> **RESTRIÇÃO DE ESCOPO DE WORKSPACE (REGRA ABSOLUTA)**:
+> O agente JAMAIS deve consultar, inspecionar ou realizar modificações em projetos externos que não pertençam ao workspace ativo do usuário. Toda análise e alteração deve se restringir estritamente aos repositórios do workspace.
+
+> [!IMPORTANT]
+> **ISOLAMENTO ESTRITO DE MULTI-TENANCY (REGRA CRÍTICA ABSOLUTA)**:
+> É ESTRITAMENTE PROIBIDO misturar ou retornar dados de uma Organização para solicitações de outra Organização. Todos os serviços, endpoints, consultas de banco de dados e componentes de frontend DEVEM obrigatoriamente filtrar todos os recursos (unidades, grupos, usuários, diários, agendamentos) pelo `id_organizacao` selecionado. Dados de organizações distintas JAMAIS podem vazar ou ser exibidos em conjunto.
+
 > [!NOTE]
 > Este arquivo documenta as **regras de negócio**, domínios funcionais, regras de auditoria e glossário do sistema **Goal Getter**.
 > Para diretrizes técnicas de implementação (stack, padrões de código, ORM, migrações), consulte o [AGENTS-BACKEND.md](./AGENTS-BACKEND.md).
