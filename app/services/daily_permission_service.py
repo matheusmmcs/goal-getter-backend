@@ -53,7 +53,7 @@ def check_user_can_access_group(db: Session, current_user: Usuario, group_id: UU
 
     # 1. Gestor da Organização do grupo
     org_id = get_group_org_id(db, grupo)
-    if is_user_org_gestor(db, current_user.id, org_id):
+    if is_user_org_gestor(db, cast(UUID, current_user.id), org_id):
         return True
 
     # 2. Membro do grupo (atribuição ativa como GESTOR_GRUPO ou PARTICIPANTE)
@@ -98,12 +98,12 @@ def check_user_can_access_config(db: Session, current_user: Usuario, config_id: 
         return False
 
     if config.id_grupo:
-        return check_user_can_access_group(db, current_user, config.id_grupo)
+        return check_user_can_access_group(db, current_user, cast(UUID, config.id_grupo))
 
     if config.id_unidade:
         from app.models.unidade import Unidade
         unidade = db.query(Unidade).filter(Unidade.id == config.id_unidade).first()
-        if unidade and is_user_org_gestor(db, current_user.id, unidade.id_organizacao):
+        if unidade and is_user_org_gestor(db, cast(UUID, current_user.id), cast(UUID, unidade.id_organizacao)):
             return True
         chefe_perfil = (
             db.query(Perfil)
@@ -148,7 +148,7 @@ def check_user_can_edit_config(db: Session, current_user: Usuario, group_id: UUI
 
     # 1. Gestor da Organização
     org_id = get_group_org_id(db, grupo)
-    if is_user_org_gestor(db, current_user.id, org_id):
+    if is_user_org_gestor(db, cast(UUID, current_user.id), org_id):
         return True
 
     # 2. Gestor do Grupo (nível 201)

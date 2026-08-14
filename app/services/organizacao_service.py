@@ -71,7 +71,7 @@ def list_organizacoes_for_user(
             "inativo": org.inativo,
             "created_at": org.created_at,
             "updated_at": org.updated_at,
-            "papel_organizacao": papel.value if hasattr(papel, "value") else papel
+            "papel_organizacao": papel.value if (papel is not None and hasattr(papel, "value")) else papel
         })
 
     return {
