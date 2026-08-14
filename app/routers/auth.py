@@ -21,3 +21,8 @@ def register(data: UsuarioRegister, db: Session = Depends(get_db)):
         data=UsuarioResponse.model_validate(result).model_dump(),
         message="auth.register_success"
     )
+
+@router.get("/check-username")
+def check_username(username: str, db: Session = Depends(get_db)):
+    result = auth_service.check_username_availability(db, username)
+    return success_response(data=result, message="auth.username_checked")

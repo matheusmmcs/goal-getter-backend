@@ -7,7 +7,65 @@ from app.core.timezone import now_in_app_timezone
 from app.models.atribuicao import Atribuicao
 from app.models.diario_config import DiarioConfig
 from app.models.diario_item import DiarioItem
+from app.models.enums import NivelCodigoEnum
 from app.models.grupo import GrupoTrabalho
+
+
+def format_group_data(grupo: GrupoTrabalho | None):
+    if not grupo:
+        return None
+    atribuicoes = []
+    usuarios_chefes = []
+    for a in grupo.atribuicoes or []:
+        if a.inativo:
+            continue
+        is_chefe = bool(a.nivel and a.nivel.valor == NivelCodigoEnum.GESTOR_GRUPO.value)
+        if is_chefe and a.usuario:
+            usuarios_chefes.append({
+                "id": str(a.usuario.id),
+                "nome": a.usuario.nome,
+                "usuario": a.usuario.usuario,
+                "email": a.usuario.email,
+            })
+        atribuicoes.append({
+            "id": str(a.id),
+            "id_usuario": str(a.id_usuario),
+            "id_grupo": str(a.id_grupo),
+            "id_nivel": str(a.id_nivel),
+            "registrador": a.registrador,
+            "inativo": a.inativo,
+            "isLeader": is_chefe,
+            "isChefe": is_chefe,
+            "papel": NivelCodigoEnum.GESTOR_GRUPO.name if is_chefe else NivelCodigoEnum.PARTICIPANTE.name,
+            "nivel": {
+                "id": str(a.nivel.id) if a.nivel else str(a.id_nivel),
+                "nome": a.nivel.nome if a.nivel else "",
+                "valor": a.nivel.valor if a.nivel else None,
+                "tipo": str(a.nivel.tipo) if a.nivel else "ATRIBUICAO",
+            } if a.nivel else None,
+            "usuario": {
+                "id": str(a.usuario.id),
+                "nome": a.usuario.nome,
+                "usuario": a.usuario.usuario,
+                "nickname": a.usuario.nickname,
+                "email": a.usuario.email,
+            } if a.usuario else None,
+        })
+
+    return {
+        "id": str(grupo.id),
+        "nome": grupo.nome,
+        "id_unidade": str(grupo.id_unidade) if grupo.id_unidade else None,
+        "id_organizacao": str(grupo.id_organizacao) if grupo.id_organizacao else None,
+        "inativo": grupo.inativo,
+        "unidade": {
+            "id": str(grupo.unidade.id),
+            "nome": grupo.unidade.nome,
+            "sigla": grupo.unidade.sigla,
+        } if grupo.unidade else None,
+        "atribuicoes": atribuicoes,
+        "usuarios_chefes": usuarios_chefes,
+    }
 
 
 def get_config(db: Session, config_id: UUID):
@@ -19,6 +77,9 @@ def get_config(db: Session, config_id: UUID):
             joinedload(DiarioConfig.grupo)
             .selectinload(GrupoTrabalho.atribuicoes)
             .joinedload(Atribuicao.usuario),
+            joinedload(DiarioConfig.grupo)
+            .selectinload(GrupoTrabalho.atribuicoes)
+            .joinedload(Atribuicao.nivel),
         )
         .filter(DiarioConfig.id == config_id, DiarioConfig.inativo == False)
         .first()
@@ -27,11 +88,25 @@ def get_config(db: Session, config_id: UUID):
         raise HTTPException(
             status_code=404, detail="Configuração daily não encontrada"
         )
-    return config
+    return {
+        "id": config.id,
+        "periodo_addnota_inicio": config.periodo_addnota_inicio,
+        "periodo_addnota_fim": config.periodo_addnota_fim,
+        "is_retroativo": config.is_retroativo,
+        "is_permite_atrasado": config.is_permite_atrasado,
+        "is_publico_para_grupo": config.is_publico_para_grupo,
+        "canal_chatmessage": config.canal_chatmessage,
+        "inativo": config.inativo,
+        "grupo": format_group_data(config.grupo),
+    }
 
 
-def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
+def get_config_by_group(db: Session, group_id: UUID, current_user):
     """Get or auto-create daily config for a group."""
+    from app.services.daily_permission_service import check_user_can_edit_config
+
+    current_user_id = current_user.id if hasattr(current_user, 'id') else current_user
+
     # Check if group exists
     grupo = (
         db.query(GrupoTrabalho)
@@ -43,7 +118,15 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
 
     config = (
         db.query(DiarioConfig)
-        .options(joinedload(DiarioConfig.grupo).selectinload(GrupoTrabalho.unidade))
+        .options(
+            joinedload(DiarioConfig.grupo).selectinload(GrupoTrabalho.unidade),
+            joinedload(DiarioConfig.grupo)
+            .selectinload(GrupoTrabalho.atribuicoes)
+            .joinedload(Atribuicao.usuario),
+            joinedload(DiarioConfig.grupo)
+            .selectinload(GrupoTrabalho.atribuicoes)
+            .joinedload(Atribuicao.nivel),
+        )
         .filter(DiarioConfig.id_grupo == group_id, DiarioConfig.inativo == False)
         .first()
     )
@@ -72,7 +155,15 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
         # Reload with relationship
         config = (
             db.query(DiarioConfig)
-            .options(joinedload(DiarioConfig.grupo).selectinload(GrupoTrabalho.unidade))
+            .options(
+                joinedload(DiarioConfig.grupo).selectinload(GrupoTrabalho.unidade),
+                joinedload(DiarioConfig.grupo)
+                .selectinload(GrupoTrabalho.atribuicoes)
+                .joinedload(Atribuicao.usuario),
+                joinedload(DiarioConfig.grupo)
+                .selectinload(GrupoTrabalho.atribuicoes)
+                .joinedload(Atribuicao.nivel),
+            )
             .filter(DiarioConfig.id == config.id)
             .first()
         )
@@ -108,6 +199,10 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
         if registro_hoje:
             has_registro_hoje = True
 
+    can_edit = False
+    if hasattr(current_user, 'id'):
+        can_edit = check_user_can_edit_config(db, current_user, group_id)
+
     return {
         "id": config.id,
         "periodo_addnota_inicio": config.periodo_addnota_inicio,
@@ -117,7 +212,8 @@ def get_config_by_group(db: Session, group_id: UUID, current_user_id: UUID):
         "is_publico_para_grupo": config.is_publico_para_grupo,
         "canal_chatmessage": config.canal_chatmessage,
         "hasRegistroHoje": has_registro_hoje,
-        "grupo": config.grupo,
+        "grupo": format_group_data(config.grupo),
+        "canEditConfig": can_edit,
     }
 
 

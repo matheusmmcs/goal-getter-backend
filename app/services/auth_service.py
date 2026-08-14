@@ -8,9 +8,14 @@ from app.schemas.auth import LoginRequest
 from app.schemas.usuario import UsuarioRegister
 
 
+import re
+
 def authenticate_user(db: Session, usuario: str, senha: str) -> Usuario | None:
-    """Authenticate user by username and password."""
-    user = db.query(Usuario).filter(Usuario.usuario.ilike(usuario)).first()
+    """Authenticate user by username or email and password."""
+    clean_login = usuario.strip()
+    user = db.query(Usuario).filter(
+        (Usuario.usuario.ilike(clean_login)) | (Usuario.email.ilike(clean_login))
+    ).first()
     if not user:
         return None
     if not verify_password(senha, user.senha):
@@ -21,28 +26,75 @@ def authenticate_user(db: Session, usuario: str, senha: str) -> Usuario | None:
 
 
 def register_user(db: Session, data: UsuarioRegister) -> Usuario:
-    """Self-register a new user."""
-    existing_user = db.query(Usuario).filter(Usuario.usuario.ilike(data.usuario.strip())).first()
+    """Self-register a new user with nickname, email and cpf validations."""
+    nome_clean = data.nome.strip()
+    if not nome_clean:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nome é obrigatório"
+        )
+
+    usuario_clean = data.usuario.strip()
+    if not usuario_clean:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nome de usuário é obrigatório"
+        )
+
+    existing_user = db.query(Usuario).filter(Usuario.usuario.ilike(usuario_clean)).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Nome de usuário já está em uso"
         )
-    
-    if data.email and data.email.strip():
-        existing_email = db.query(Usuario).filter(Usuario.email.ilike(data.email.strip())).first()
-        if existing_email:
+
+    email_clean = data.email.strip() if data.email else ""
+    if not email_clean:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="E-mail é obrigatório"
+        )
+
+    existing_email = db.query(Usuario).filter(Usuario.email.ilike(email_clean)).first()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="E-mail já está cadastrado"
+        )
+
+    nickname_clean = data.nickname.strip() if data.nickname and data.nickname.strip() else usuario_clean
+    if nickname_clean:
+        existing_nickname = db.query(Usuario).filter(Usuario.nickname.ilike(nickname_clean)).first()
+        if existing_nickname:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="E-mail já está cadastrado"
+                detail="Nickname já está em uso"
             )
+
+    cpf_digits = None
+    if data.cpf and data.cpf.strip():
+        cpf_digits = re.sub(r'\D', '', data.cpf.strip())
+        if cpf_digits:
+            existing_cpf = db.query(Usuario).filter(Usuario.cpf == cpf_digits).first()
+            if existing_cpf:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="CPF já está cadastrado"
+                )
+
+    if len(data.senha) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A senha deve ter no mínimo 8 caracteres"
+        )
 
     now = now_in_app_timezone()
     new_user = Usuario(
-        usuario=data.usuario.strip(),
-        nome=data.nome.strip(),
-        email=data.email.strip() if data.email else None,
-        cpf=data.cpf.strip() if data.cpf else None,
+        usuario=usuario_clean,
+        nome=nome_clean,
+        nickname=nickname_clean,
+        email=email_clean,
+        cpf=cpf_digits,
         senha=get_password_hash(data.senha),
         is_admin=False,
         is_autorizado=True,
@@ -119,6 +171,7 @@ def login(db: Session, credentials: LoginRequest) -> dict:
             "id": full_user.id,
             "nome": full_user.nome,
             "usuario": full_user.usuario,
+            "nickname": full_user.nickname,
             "email": full_user.email,
             "cpf": full_user.cpf,
             "is_admin": full_user.is_admin,
@@ -126,4 +179,25 @@ def login(db: Session, credentials: LoginRequest) -> dict:
             "perfis": [],
         },
     }
+
+
+def check_username_availability(db: Session, username: str) -> dict:
+    """Verifica se o nome de usuário está disponível e sugere sufixo numérico (ex: 2) caso já exista."""
+    clean = username.strip()
+    if not clean:
+        return {"available": False, "suggested": ""}
+
+    exists = db.query(Usuario).filter(Usuario.usuario.ilike(clean)).first() is not None
+    suggested = clean
+    if exists:
+        counter = 2
+        while db.query(Usuario).filter(Usuario.usuario.ilike(f"{clean}{counter}")).first() is not None:
+            counter += 1
+        suggested = f"{clean}{counter}"
+
+    return {
+        "available": not exists,
+        "suggested": suggested
+    }
+
 

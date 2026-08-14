@@ -45,7 +45,35 @@ def list_organizacoes_for_user(
             query = query.filter(Organizacao.inativo == False)
 
     total = query.count()
-    items = query.order_by(Organizacao.nome.asc()).offset(page * size).limit(size).all()
+    items_raw = query.order_by(Organizacao.nome.asc()).offset(page * size).limit(size).all()
+
+    vinculos = (
+        db.query(UsuarioOrganizacao)
+        .filter(
+            UsuarioOrganizacao.id_usuario == current_user.id,
+            UsuarioOrganizacao.inativo == False
+        )
+        .all()
+    )
+    vinculos_map = {str(v.id_organizacao): v.papel_organizacao for v in vinculos}
+
+    items = []
+    for org in items_raw:
+        papel = vinculos_map.get(str(org.id))
+        if not papel and current_user.is_admin:
+            papel = PapelOrganizacaoEnum.GESTOR
+
+        items.append({
+            "id": org.id,
+            "nome": org.nome,
+            "sigla": org.sigla,
+            "descricao": org.descricao,
+            "inativo": org.inativo,
+            "created_at": org.created_at,
+            "updated_at": org.updated_at,
+            "papel_organizacao": papel.value if hasattr(papel, "value") else papel
+        })
+
     return {
         "items": items,
         "count": len(items),
@@ -105,7 +133,7 @@ def get_detail_by_id(db: Session, id: UUID):
     }
 
 
-def create_organizacao(db: Session, data: OrganizacaoCreate) -> Organizacao:
+def create_organizacao(db: Session, data: OrganizacaoCreate, current_user: Optional[Usuario] = None) -> Organizacao:
     nova_org = Organizacao(
         nome=data.nome,
         sigla=data.sigla,
@@ -114,6 +142,7 @@ def create_organizacao(db: Session, data: OrganizacaoCreate) -> Organizacao:
     db.add(nova_org)
     db.flush()
 
+    has_creator_link = False
     if data.usuarios_vinculos:
         for item in data.usuarios_vinculos:
             usuario = db.query(Usuario).filter(Usuario.id == item.id_usuario, Usuario.inativo == False).first()
@@ -124,6 +153,17 @@ def create_organizacao(db: Session, data: OrganizacaoCreate) -> Organizacao:
                     papel_organizacao=item.papel_organizacao
                 )
                 db.add(vinculo)
+                if current_user and str(item.id_usuario) == str(current_user.id):
+                    has_creator_link = True
+
+    # Se um usuário autenticado criou a organização e ainda não está nos vínculos, vincula-o como GESTOR
+    if current_user and not has_creator_link:
+        vinculo_criador = UsuarioOrganizacao(
+            id_usuario=current_user.id,
+            id_organizacao=nova_org.id,
+            papel_organizacao=PapelOrganizacaoEnum.GESTOR
+        )
+        db.add(vinculo_criador)
 
     db.commit()
     db.refresh(nova_org)
@@ -265,3 +305,61 @@ def listar_usuarios_detalhados_organizacao(db: Session, org_id: UUID):
         })
 
     return resultado
+
+
+def listar_usuarios_disponiveis_organizacao(
+    db: Session,
+    org_id: UUID,
+    nome: Optional[str] = None,
+    page: int = 0,
+    size: int = 50
+):
+    """
+    Retorna todos os usuários ativos e autorizados do sistema
+    que ainda NÃO possuem vínculo ativo nesta organização.
+    """
+    vinculados_subquery = (
+        db.query(UsuarioOrganizacao.id_usuario)
+        .filter(
+            UsuarioOrganizacao.id_organizacao == org_id,
+            UsuarioOrganizacao.inativo == False
+        )
+    )
+
+    query = db.query(Usuario).filter(
+        Usuario.inativo == False,
+        Usuario.is_autorizado == True,
+        Usuario.id.notin_(vinculados_subquery)
+    )
+
+    if nome and nome.strip():
+        search_term = f"%{nome.strip()}%"
+        query = query.filter(
+            (Usuario.nome.ilike(search_term)) |
+            (Usuario.usuario.ilike(search_term)) |
+            (Usuario.nickname.ilike(search_term)) |
+            (Usuario.email.ilike(search_term))
+        )
+
+    total = query.count()
+    items = query.order_by(Usuario.nome.asc()).offset(page * size).limit(size).all()
+
+    return {
+        "items": [
+            {
+                "id": str(u.id),
+                "nome": u.nome,
+                "usuario": u.usuario,
+                "nickname": u.nickname,
+                "email": u.email,
+                "is_admin": u.is_admin,
+            }
+            for u in items
+        ],
+        "count": len(items),
+        "total": total,
+        "page": page,
+        "size": size,
+        "totalPages": math.ceil(total / size) if size > 0 else 0
+    }
+

@@ -48,6 +48,7 @@ def _assign_users_to_group(
     grupo_id: UUID,
     usuarios_chefes: list[UUID],
     usuarios_participantes: list[UUID],
+    chefes_registradores: list[UUID] | None = None,
     id_organizacao: UUID | None = None,
 ):
     if not usuarios_chefes:
@@ -56,6 +57,7 @@ def _assign_users_to_group(
         raise HTTPException(status_code=400, detail="O grupo deve ter pelo menos 1 participante")
 
     chefes_set = set(str(uid) for uid in usuarios_chefes)
+    chefes_registradores_set = set(str(uid) for uid in (chefes_registradores or []))
     participantes_set = set(str(uid) for uid in usuarios_participantes)
     intersect = chefes_set.intersection(participantes_set)
     if intersect:
@@ -67,7 +69,7 @@ def _assign_users_to_group(
     # Validar que todos os usuários pertencem à organização quando id_organizacao fornecido
     if id_organizacao:
         from app.models.usuario_organizacao import UsuarioOrganizacao
-        all_user_ids = list(chefes_set.union(participantes_set))
+        all_user_ids = [UUID(str(uid)) for uid in chefes_set.union(participantes_set)]
         valid_count = db.query(UsuarioOrganizacao).filter(
             UsuarioOrganizacao.id_organizacao == id_organizacao,
             UsuarioOrganizacao.id_usuario.in_(all_user_ids),
@@ -99,18 +101,22 @@ def _assign_users_to_group(
     for uid in usuarios_participantes:
         target_assignments[str(uid)] = nivel_participante.id
 
-
     # Create or reactivate assignments
     for uid_str, nivel_id in target_assignments.items():
+        is_chefe = uid_str in chefes_set
+        is_registrador = (uid_str in chefes_registradores_set) if is_chefe else True
+
         if uid_str in existing_map:
             atrib = existing_map[uid_str]
             atrib.id_nivel = nivel_id
+            atrib.registrador = is_registrador
             atrib.inativo = False
         else:
             nova_atrib = Atribuicao(
-                id_usuario=uid_str,
+                id_usuario=UUID(uid_str),
                 id_grupo=grupo_id,
                 id_nivel=nivel_id,
+                registrador=is_registrador,
             )
             db.add(nova_atrib)
 
@@ -134,12 +140,12 @@ def create_in_unidade(db: Session, unidade_id: UUID, data: GrupoCreate) -> Grupo
     db.add(novo_grupo)
     db.flush()
 
-
     _assign_users_to_group(
         db,
         novo_grupo.id,
         data.usuarios_chefes,
         data.usuarios_participantes,
+        chefes_registradores=data.chefes_registradores,
         id_organizacao=id_org,
     )
 
@@ -156,7 +162,7 @@ def update_in_unidade(
         raise HTTPException(status_code=400, detail="Grupo não pertence a esta unidade")
 
     update_data = data.model_dump(
-        exclude_unset=True, exclude={"usuarios_chefes", "usuarios_participantes"}
+        exclude_unset=True, exclude={"usuarios_chefes", "usuarios_participantes", "chefes_registradores"}
     )
     for key, value in update_data.items():
         setattr(grupo, key, value)
@@ -169,6 +175,7 @@ def update_in_unidade(
             grupo.id,
             data.usuarios_chefes,
             data.usuarios_participantes,
+            chefes_registradores=data.chefes_registradores,
             id_organizacao=grupo.id_organizacao,
         )
 

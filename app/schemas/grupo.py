@@ -8,6 +8,7 @@ class GrupoCreate(BaseModel):
     id_unidade: UUID
     usuarios_participantes: list[UUID] = []
     usuarios_chefes: list[UUID] = []
+    chefes_registradores: list[UUID] = []
     inativo: bool = False
 
 class GrupoUpdate(BaseModel):
@@ -15,6 +16,7 @@ class GrupoUpdate(BaseModel):
     id_unidade: Optional[UUID] = None
     usuarios_participantes: Optional[list[UUID]] = None
     usuarios_chefes: Optional[list[UUID]] = None
+    chefes_registradores: Optional[list[UUID]] = None
     inativo: Optional[bool] = None
 
 class GrupoResponse(BaseModel):

@@ -48,7 +48,10 @@ def list_usuarios(
     if nome and nome.strip():
         search_term = f"%{nome.strip()}%"
         query = query.filter(
-            (Usuario.nome.ilike(search_term)) | (Usuario.usuario.ilike(search_term))
+            (Usuario.nome.ilike(search_term)) |
+            (Usuario.usuario.ilike(search_term)) |
+            (Usuario.nickname.ilike(search_term)) |
+            (Usuario.email.ilike(search_term))
         )
 
     total = query.count()
@@ -76,10 +79,39 @@ def get_by_id(db: Session, user_id: UUID, include_inactive: bool = True) -> Usua
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return user
 
+import re
 from app.core.timezone import now_in_app_timezone
 
 def create(db: Session, data: UsuarioCreate) -> Usuario:
     user_data = data.model_dump()
+    
+    if user_data.get("usuario"):
+        user_data["usuario"] = user_data["usuario"].strip()
+        existing = db.query(Usuario).filter(Usuario.usuario.ilike(user_data["usuario"])).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Nome de usuário já está em uso")
+
+    if user_data.get("email"):
+        user_data["email"] = user_data["email"].strip()
+        existing = db.query(Usuario).filter(Usuario.email.ilike(user_data["email"])).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="E-mail já está cadastrado")
+
+    if user_data.get("nickname"):
+        user_data["nickname"] = user_data["nickname"].strip()
+        existing = db.query(Usuario).filter(Usuario.nickname.ilike(user_data["nickname"])).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Nickname já está em uso")
+
+    if user_data.get("cpf"):
+        user_data["cpf"] = re.sub(r'\D', '', str(user_data["cpf"]))
+        if user_data["cpf"]:
+            existing = db.query(Usuario).filter(Usuario.cpf == user_data["cpf"]).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="CPF já está cadastrado")
+        else:
+            user_data["cpf"] = None
+
     if "senha" in user_data and user_data["senha"]:
         user_data["senha"] = get_password_hash(user_data["senha"])
     
@@ -98,6 +130,40 @@ def create(db: Session, data: UsuarioCreate) -> Usuario:
 def update(db: Session, user_id: UUID, data: UsuarioUpdate) -> Usuario:
     user = get_by_id(db, user_id, include_inactive=True)
     update_data = data.model_dump(exclude_unset=True)
+
+    if "usuario" in update_data and update_data["usuario"]:
+        update_data["usuario"] = update_data["usuario"].strip()
+        existing = db.query(Usuario).filter(Usuario.usuario.ilike(update_data["usuario"]), Usuario.id != user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Nome de usuário já está em uso")
+
+    if "email" in update_data and update_data["email"]:
+        update_data["email"] = update_data["email"].strip()
+        existing = db.query(Usuario).filter(Usuario.email.ilike(update_data["email"]), Usuario.id != user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="E-mail já está cadastrado")
+
+    if "nickname" in update_data:
+        if update_data["nickname"] and update_data["nickname"].strip():
+            update_data["nickname"] = update_data["nickname"].strip()
+            existing = db.query(Usuario).filter(Usuario.nickname.ilike(update_data["nickname"]), Usuario.id != user_id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="Nickname já está em uso")
+        else:
+            update_data["nickname"] = None
+
+    if "cpf" in update_data:
+        if update_data["cpf"] and str(update_data["cpf"]).strip():
+            update_data["cpf"] = re.sub(r'\D', '', str(update_data["cpf"]))
+            if update_data["cpf"]:
+                existing = db.query(Usuario).filter(Usuario.cpf == update_data["cpf"], Usuario.id != user_id).first()
+                if existing:
+                    raise HTTPException(status_code=400, detail="CPF já está cadastrado")
+            else:
+                update_data["cpf"] = None
+        else:
+            update_data["cpf"] = None
+
     if "senha" in update_data and update_data["senha"]:
         update_data["senha"] = get_password_hash(update_data["senha"])
     

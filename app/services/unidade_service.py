@@ -1,9 +1,17 @@
+import math
+import unicodedata
 from uuid import UUID
 from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.unidade import Unidade
-import math
+
+
+def generate_nome_ascii(nome: str) -> str:
+    if not nome:
+        return ""
+    normalized = unicodedata.normalize('NFKD', nome)
+    return "".join(c for c in normalized if not unicodedata.combining(c)).strip()
 
 
 def list_all(db: Session, page: int, size: int, id_organizacao: Optional[UUID] = None):
@@ -32,6 +40,8 @@ def create(db: Session, data, id_organizacao: Optional[UUID] = None) -> Unidade:
     unidade_data = data.model_dump()
     if id_organizacao and not unidade_data.get("id_organizacao"):
         unidade_data["id_organizacao"] = id_organizacao
+    if not unidade_data.get("nome_ascii") and unidade_data.get("nome"):
+        unidade_data["nome_ascii"] = generate_nome_ascii(unidade_data["nome"])
     nova_unidade = Unidade(**unidade_data)
     db.add(nova_unidade)
     db.commit()
@@ -41,6 +51,8 @@ def create(db: Session, data, id_organizacao: Optional[UUID] = None) -> Unidade:
 def update(db: Session, id: UUID, data) -> Unidade:
     unidade = get_by_id(db, id)
     update_data = data.model_dump(exclude_unset=True)
+    if "nome" in update_data and not update_data.get("nome_ascii"):
+        update_data["nome_ascii"] = generate_nome_ascii(update_data["nome"])
     for key, value in update_data.items():
         setattr(unidade, key, value)
     db.commit()

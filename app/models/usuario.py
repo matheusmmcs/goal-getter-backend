@@ -23,6 +23,7 @@ class Usuario(Base):
     usuario: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     senha: Mapped[str] = mapped_column(String, nullable=False)
     nome: Mapped[str] = mapped_column(String, nullable=False)
+    nickname: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     cpf: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)

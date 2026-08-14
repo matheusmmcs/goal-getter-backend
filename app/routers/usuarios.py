@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_admin, get_current_organization_id
 from app.core.response import success_response
+from app.models.usuario import Usuario
 from app.schemas.usuario import (
     UsuarioCreate,
     UsuarioDetailResponse,
@@ -74,8 +75,16 @@ def update_usuario(
     id: UUID,
     data: UsuarioUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(require_admin),
+    current_user: Usuario = Depends(get_current_user),
 ):
+    if not current_user.is_admin and current_user.id != id:
+        raise HTTPException(status_code=403, detail="Permissão negada para atualizar este usuário")
+
+    if not current_user.is_admin:
+        data.is_admin = None
+        data.is_autorizado = None
+        data.inativo = None
+
     result = usuario_service.update(db, id, data)
     return success_response(
         data=UsuarioResponse.model_validate(result).model_dump(),

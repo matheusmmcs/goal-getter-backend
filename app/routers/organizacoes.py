@@ -2,7 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, require_admin, require_org_gestor
+from app.core.dependencies import get_current_user, require_admin, require_org_gestor, require_org_member
 from app.core.response import success_response
 from app.models.usuario import Usuario
 from app.schemas.organizacao import (
@@ -43,9 +43,9 @@ def get_organizacao(
 def create_organizacao(
     data: OrganizacaoCreate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_admin)
+    current_user: Usuario = Depends(get_current_user)
 ):
-    result = organizacao_service.create_organizacao(db, data)
+    result = organizacao_service.create_organizacao(db, data, current_user=current_user)
     return success_response(data=result, message="organization.created")
 
 
@@ -78,9 +78,23 @@ def list_usuarios_organizacao(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    require_org_gestor(str(id), current_user, db)
+    require_org_member(str(id), current_user, db)
     result = organizacao_service.listar_usuarios_detalhados_organizacao(db, id)
     return success_response(data=result, message="organization.users.listed")
+
+
+@router.get("/{id}/usuarios-disponiveis")
+def list_usuarios_disponiveis_organizacao(
+    id: UUID,
+    nome: str | None = Query(None),
+    page: int = Query(0, ge=0),
+    size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    require_org_gestor(str(id), current_user, db)
+    result = organizacao_service.listar_usuarios_disponiveis_organizacao(db, id, nome, page, size)
+    return success_response(data=result, message="organization.available_users.listed")
 
 
 @router.post("/{id}/vinculos")

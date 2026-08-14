@@ -156,6 +156,29 @@ def _send_chat_webhook_sync(message: str):
         logger.warning(f"Falha ao enviar notificação ao Chat: {e}")
 
 
+def _validate_notas_payload(data: DiarioItemCreate):
+    """Validate that 'O que fiz ontem' (YESTERDAY) and 'O que fiz hoje' (TODAY) both contain at least one non-empty note."""
+    yesterday_notes = [
+        nota for nota in (data.notas or {}).get("YESTERDAY", [])
+        if nota.descricao and nota.descricao.strip()
+    ]
+    if not yesterday_notes:
+        raise HTTPException(
+            status_code=400,
+            detail="É obrigatório informar pelo menos uma atividade em 'O que fiz ontem'",
+        )
+
+    today_notes = [
+        nota for nota in (data.notas or {}).get("TODAY", [])
+        if nota.descricao and nota.descricao.strip()
+    ]
+    if not today_notes:
+        raise HTTPException(
+            status_code=400,
+            detail="É obrigatório informar pelo menos uma atividade em 'O que fiz hoje'",
+        )
+
+
 def create_item(
     db: Session,
     config_id: UUID,
@@ -165,6 +188,8 @@ def create_item(
     data: DiarioItemCreate,
     current_user,
 ) -> DiarioItem:
+    _validate_notas_payload(data)
+
     # 1. Find config
     config = db.query(DiarioConfig).filter(DiarioConfig.id == config_id).first()
     if not config:
@@ -269,6 +294,8 @@ def update_item(
     item_id: UUID,
     data: DiarioItemCreate,
 ) -> DiarioItem:
+    _validate_notas_payload(data)
+
     item = (
         db.query(DiarioItem)
         .options(joinedload(DiarioItem.config))

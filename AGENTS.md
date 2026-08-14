@@ -58,7 +58,16 @@ O **Goal Getter** é o sistema de acompanhamento de atividades diárias (digital
   - `PARTICIPANTE` = `202` (Tipo `ATRIBUICAO`)
 - **Criação/Edição de Grupos**: Exige pelo menos 1 chefe (201) e 1 participante (202). Um usuário não pode ocupar ambos os papéis no mesmo grupo. A atualização realiza diff atômico das atribuições.
 
-### 4. Diário de Atividades & Soft Delete Parcial
+### 4. Diário de Atividades, Controle de Acesso & Soft Delete
+- **Controle de Acesso ao Grupo e Diários**: Um usuário **só pode acessar a página de diários e subpáginas de um grupo** se cumprir pelo menos um dos requisitos:
+  1. É Administrador global (`is_admin == True`);
+  2. É Gestor da Organização à qual o grupo pertence (`PapelOrganizacaoEnum.GESTOR`);
+  3. É Membro ativo do grupo com atribuição (`GESTOR_GRUPO` ou `PARTICIPANTE`);
+  4. É Chefe da Unidade (`CHEFE_UNIDADE`) à qual o grupo pertence.
+  *Usuários sem esses vínculos recebem `HTTP 403 Forbidden` e são redirecionados à tela inicial/organização.*
+- **Permissão para Editar Configuração do Diário**:
+  - O botão e endpoint de criação/edição da `DiarioConfig` do grupo são restritos a: **Admin**, **Gestor da Organização**, **Chefe da Unidade** ou **Gestor do Grupo** (`NivelCodigoEnum.GESTOR_GRUPO` / 201).
+  - Participantes comuns (`PARTICIPANTE` / 202) têm acesso somente para registrar e visualizar anotações, sem permissão para alterar a configuração da daily.
 - Cada membro pode registrar **1 diário por dia por configuração**.
 - Categorias de anotações: `TODAY` (fará hoje), `YESTERDAY` (fez ontem), `IMPEDIMENT` (bloqueios).
 - **Soft Delete e Unicidade**: A exclusão é lógica (`inativo = True`). Todas as restrições de unicidade (ex: `(id_diario_config, id_atribuicao_usuario, data_diario)`) utilizam **Índices Parciais** no banco (`WHERE inativo IS FALSE`) para permitir que registros reativados ou recriados não causem conflito.
@@ -95,11 +104,14 @@ erDiagram
 
 ## 🔐 Matriz de Permissões
 
-| Operação | Usuário Comum | Gestor de Grupo | Admin |
-|---|---|---|---|
-| Autenticação / Login | ✅ | ✅ | ✅ |
-| Consultar Unidades / Grupos | ✅ | ✅ | ✅ |
-| Criar / Editar Grupos | ❌ | ✅ (no seu grupo) | ✅ |
-| Registrar Daily Stand-up | ✅ (se membro) | ✅ | ✅ |
-| Gerenciar Agendamentos | ❌ | ❌ | ✅ |
-| Criar Usuários / Unidades | ❌ | ❌ | ✅ |
+| Operação | Usuário Fora do Grupo | Participante (202) | Gestor de Grupo (201) / Chefe (101) | Gestor da Org / Admin |
+|---|---|---|---|---|
+| Autenticação / Login | ✅ | ✅ | ✅ | ✅ |
+| Criar Organizações | ✅ | ✅ | ✅ | ✅ |
+| Acessar Diário / Subpáginas do Grupo | ❌ (403) | ✅ | ✅ | ✅ |
+| Registrar / Ver Daily Stand-up | ❌ (403) | ✅ (no seu grupo) | ✅ (no seu grupo) | ✅ |
+| Editar Configuração da Daily (`DiarioConfig`) | ❌ (403) | ❌ (403) | ✅ (no seu grupo/unidade) | ✅ |
+| Criar / Editar Grupos | ❌ | ❌ | ✅ (no seu grupo) | ✅ |
+| Gerenciar Agendamentos | ❌ | ❌ | ❌ | ✅ |
+| Criar Usuários / Unidades | ❌ | ❌ | ❌ | ✅ |
+

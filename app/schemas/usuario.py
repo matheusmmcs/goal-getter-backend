@@ -8,6 +8,7 @@ from datetime import datetime
 class UsuarioBase(BaseModel):
     usuario: str
     nome: str
+    nickname: Optional[str] = None
     email: Optional[str] = None
     cpf: Optional[str] = None
 
@@ -20,12 +21,14 @@ class UsuarioRegister(BaseModel):
     usuario: str
     nome: str
     senha: str
-    email: Optional[str] = None
+    email: str
+    nickname: Optional[str] = None
     cpf: Optional[str] = None
 
 class UsuarioUpdate(BaseModel):
     usuario: Optional[str] = None
     nome: Optional[str] = None
+    nickname: Optional[str] = None
     email: Optional[str] = None
     cpf: Optional[str] = None
     senha: Optional[str] = None

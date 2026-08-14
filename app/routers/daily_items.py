@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.response import success_response
 from app.schemas.daily import DiarioItemCreate
-from app.services import daily_item_service
+from app.services import daily_item_service, daily_permission_service
 
 router = APIRouter()
 
@@ -20,6 +20,7 @@ def get_items_month(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    daily_permission_service.require_config_access(db, current_user, config_id)
     data = daily_item_service.get_items_by_month(db, config_id, year, month)
     return success_response(data=data, message="daily_item.month_retrieved")
 
@@ -33,6 +34,7 @@ def get_items_day(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    daily_permission_service.require_config_access(db, current_user, config_id)
     data = daily_item_service.get_items_by_day(db, config_id, year, month, day)
     return success_response(data=data, message="daily_item.day_retrieved")
 
@@ -47,6 +49,7 @@ def get_item(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    daily_permission_service.require_config_access(db, current_user, config_id)
     data = daily_item_service.get_item_by_id(db, config_id, year, month, day, item_id)
     return success_response(data=data, message="daily_item.retrieved")
 
@@ -61,6 +64,7 @@ def create_item(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    daily_permission_service.require_config_access(db, current_user, config_id)
     data = daily_item_service.create_item(
         db, config_id, year, month, day, payload, current_user
     )
@@ -78,6 +82,7 @@ def update_item(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    daily_permission_service.require_config_access(db, current_user, config_id)
     data = daily_item_service.update_item(
         db, config_id, year, month, day, item_id, payload
     )
@@ -93,5 +98,7 @@ def get_report(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    daily_permission_service.require_config_access(db, current_user, config_id)
+    daily_permission_service.require_group_access(db, current_user, grupo)
     data = daily_item_service.get_report(db, config_id, inicio, fim, grupo)
     return success_response(data=data, message="daily_item.report_generated")

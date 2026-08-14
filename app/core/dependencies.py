@@ -80,3 +80,26 @@ def require_org_gestor(
 
     return current_user
 
+
+def require_org_member(
+    org_id: str,
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)]
+) -> Usuario:
+    if current_user.is_admin:
+        return current_user
+
+    from app.models.usuario_organizacao import UsuarioOrganizacao
+
+    vinculo = db.query(UsuarioOrganizacao).filter(
+        UsuarioOrganizacao.id_organizacao == org_id,
+        UsuarioOrganizacao.id_usuario == current_user.id,
+        UsuarioOrganizacao.inativo == False,
+    ).first()
+
+    if not vinculo:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso permitido apenas a membros vinculados a esta Organização ou Administradores")
+
+    return current_user
+
+
