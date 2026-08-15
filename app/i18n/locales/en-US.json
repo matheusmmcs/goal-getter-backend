@@ -4,12 +4,12 @@
     "user_inactive": "Inactive user",
     "user_unauthorized": "Unauthorized user",
     "admin_required": "Admin privileges required",
-    "session_expired": "Session expired. Please log in again.",
-    "login_success": "Login successful"
+    "login_success": "Login successful",
+    "register_success": "User registered successfully",
+    "username_checked": "Username availability checked"
   },
   "user": {
     "not_found": "User not found",
-    "already_exists": "A user with this login already exists",
     "listed": "Users listed",
     "found": "User found",
     "created": "User created",
@@ -17,7 +17,45 @@
     "deactivated": "User deactivated",
     "reactivated": "User reactivated",
     "atribuicoes_found": "Assignments found",
-    "perfis_found": "Profiles found"
+    "perfis_found": "Profiles found",
+    "name_required": "Name is required",
+    "username_required": "Username is required",
+    "username_taken": "Username is already in use",
+    "email_required": "Email is required",
+    "email_taken": "Email is already registered",
+    "nickname_taken": "Nickname is already in use",
+    "cpf_taken": "CPF is already registered",
+    "password_too_short": "Password must contain at least 8 characters"
+  },
+  "authorization": {
+    "organization_manager_required": "Access is limited to organization managers or administrators",
+    "organization_member_required": "Access is limited to members of this organization or administrators",
+    "user_update_denied": "You do not have permission to update this user",
+    "group_access_denied": "Access to the work group is denied",
+    "daily_config_access_denied": "Access to the group's daily configuration is denied",
+    "daily_config_edit_denied": "Only organization managers, administrators, or group managers can edit the daily configuration"
+    ,"unit_daily_config_edit_denied": "Only administrators or organization managers can edit unit daily configurations"
+  },
+  "organization": {
+    "not_found": "Organization not found",
+    "user_link_not_found": "User link was not found in this organization",
+    "link_not_found": "Link not found",
+    "listed": "Organizations listed",
+    "found": "Organization found",
+    "created": "Organization created",
+    "updated": "Organization updated",
+    "deactivated": "Organization deactivated",
+    "users": {
+      "listed": "Organization users listed"
+    },
+    "available_users": {
+      "listed": "Available users listed"
+    },
+    "vinculo": {
+      "created": "Link created",
+      "updated": "Link updated",
+      "deactivated": "Link deactivated"
+    }
   },
   "unit": {
     "not_found": "Unit not found",
@@ -40,6 +78,8 @@
     "at_least_one_participant": "The group must have at least 1 participant",
     "user_cannot_be_both": "A user cannot be both a chief and a participant at the same time",
     "not_in_unit": "Group does not belong to this unit",
+    "members_must_belong_to_organization": "All chiefs and participants must belong to this group's organization",
+    "assignment_levels_not_configured": "The required group assignment levels are not configured in the system",
     "listed": "Groups listed",
     "found": "Group found",
     "created": "Group created",
@@ -49,7 +89,6 @@
     "updated_in_unit": "Group updated in unit"
   },
   "daily_config": {
-    "group_not_found": "Group not found",
     "not_found": "Daily configuration not found",
     "already_exists": "This group already has a daily configuration",
     "retrieved": "Configuration retrieved",
@@ -58,7 +97,6 @@
     "updated": "Configuration updated successfully"
   },
   "daily_item": {
-    "config_not_found": "Daily configuration not found",
     "user_not_in_group": "User does not belong to this group",
     "already_exists": "A daily entry already exists for this day",
     "future_date_not_allowed": "Cannot log daily for future dates",
@@ -68,6 +106,9 @@
     "invalid_date": "Invalid date",
     "not_found": "Daily record not found",
     "invalid_annotation_type": "Invalid annotation type: {type}. Use: TODAY, YESTERDAY, IMPEDIMENT",
+    "yesterday_required": "At least one activity for yesterday is required",
+    "today_required": "At least one activity for today is required",
+    "invalid_date_format": "Invalid date format. Use YYYY-MM-DD.",
     "month_retrieved": "Month records retrieved",
     "day_retrieved": "Day records retrieved",
     "retrieved": "Record retrieved",
@@ -89,12 +130,27 @@
     "entregas_retrieved": "Petrvs deliveries retrieved",
     "entregas_ativas_retrieved": "Active Petrvs deliveries retrieved"
   },
+  "openapi": {
+    "report_start_date": "Start date (YYYY-MM-DD)",
+    "report_end_date": "End date (YYYY-MM-DD)",
+    "report_group_id": "Group identifier"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalid": "Invalid value",
+    "string_too_short": "The text is shorter than the minimum allowed length",
+    "string_too_long": "The text exceeds the maximum allowed length",
+    "string_pattern_mismatch": "The provided format is invalid",
+    "greater_than": "The value must be greater than {gt}",
+    "greater_than_equal": "The value must be greater than or equal to {ge}",
+    "less_than": "The value must be less than {lt}",
+    "less_than_equal": "The value must be less than or equal to {le}"
+  },
   "common": {
     "success": "Operation completed successfully",
     "request_error": "A request error occurred",
     "invalid_data": "Invalid data",
     "invalid_request_data": "Invalid request data",
-    "internal_error": "An internal server error occurred. Please try again later.",
-    "access_denied": "You do not have permission to perform this operation."
+    "internal_error": "An internal server error occurred. Please try again later."
   }
 }

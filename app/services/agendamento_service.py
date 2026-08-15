@@ -18,7 +18,7 @@ def list_all(db: Session, page: int, size: int):
 def get_by_id(db: Session, id: str):
     item = db.query(Agendamento).filter(Agendamento.id == id, Agendamento.inativo == False).first()
     if not item:
-        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+        raise HTTPException(status_code=404, detail="schedule.not_found")
     return item
 
 def create(db: Session, data: dict):
@@ -40,4 +40,4 @@ def deactivate(db: Session, id: str):
     item = get_by_id(db, id)
     item.inativo = True
     db.commit()
-    return {"success": True, "message": "Deactivated"}
+    return {"success": True}

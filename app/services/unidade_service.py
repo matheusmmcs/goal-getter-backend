@@ -33,7 +33,7 @@ def list_all(db: Session, page: int, size: int, id_organizacao: Optional[UUID] =
 def get_by_id(db: Session, id: UUID) -> Unidade:
     unidade = db.query(Unidade).filter(Unidade.id == id, Unidade.inativo == False).first()
     if not unidade:
-        raise HTTPException(status_code=404, detail="Unidade não encontrada")
+        raise HTTPException(status_code=404, detail="unit.not_found")
     return unidade
 
 def create(db: Session, data, id_organizacao: Optional[UUID] = None) -> Unidade:

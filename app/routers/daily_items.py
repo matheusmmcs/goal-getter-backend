@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.i18n import _
 from app.core.response import success_response
 from app.schemas.daily import DiarioItemCreate
 from app.services import daily_item_service, daily_permission_service
@@ -92,9 +93,9 @@ def update_item(
 @router.get("/{config_id}/relatorio")
 def get_report(
     config_id: UUID,
-    inicio: str = Query(..., description="Data início (YYYY-MM-DD)"),
-    fim: str = Query(..., description="Data fim (YYYY-MM-DD)"),
-    grupo: UUID = Query(..., description="ID do grupo"),
+    inicio: str = Query(..., description=_("openapi.report_start_date")),
+    fim: str = Query(..., description=_("openapi.report_end_date")),
+    grupo: UUID = Query(..., description=_("openapi.report_group_id")),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):

@@ -5,18 +5,18 @@ from datetime import datetime
 
 async def get_entregas(cpf: str):
     if not settings.PETRVS_ENABLED:
-        raise HTTPException(status_code=503, detail="Petrvs integration is disabled")
+        raise HTTPException(status_code=503, detail="petrvs.disabled")
     
     url = f"{settings.PETRVS_API_URL}/entregas?cpf={cpf}"
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
         if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="Error fetching from Petrvs")
+            raise HTTPException(status_code=response.status_code, detail="petrvs.fetch_error")
         return response.json()
 
 async def get_entregas_ativas_hoje(cpf: str):
     if not settings.PETRVS_ENABLED:
-        raise HTTPException(status_code=503, detail="Petrvs integration is disabled")
+        raise HTTPException(status_code=503, detail="petrvs.disabled")
         
     entregas = await get_entregas(cpf)
     hoje = datetime.now().date()

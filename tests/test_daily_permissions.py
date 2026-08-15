@@ -273,7 +273,7 @@ def test_daily_item_yesterday_required(db):
     with pytest.raises(HTTPException) as exc_info:
         daily_item_service.create_item(db, config.id, now.year, now.month, now.day, invalid_payload, user)
     assert exc_info.value.status_code == 400
-    assert "O que fiz ontem" in exc_info.value.detail
+    assert exc_info.value.detail == "daily_item.yesterday_required"
 
     # Tentativa de salvar com YESTERDAY vazio -> Deve lançar 400
     invalid_blank_payload = DiarioItemCreate(
@@ -295,7 +295,7 @@ def test_daily_item_yesterday_required(db):
     with pytest.raises(HTTPException) as exc_info:
         daily_item_service.create_item(db, config.id, now.year, now.month, now.day, invalid_no_today_payload, user)
     assert exc_info.value.status_code == 400
-    assert "O que fiz hoje" in exc_info.value.detail
+    assert exc_info.value.detail == "daily_item.today_required"
 
     # Salvando com YESTERDAY e TODAY preenchidos -> Sucesso
     valid_payload = DiarioItemCreate(

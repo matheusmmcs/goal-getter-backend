@@ -78,7 +78,7 @@ def update_usuario(
     current_user: Usuario = Depends(get_current_user),
 ):
     if not current_user.is_admin and current_user.id != id:
-        raise HTTPException(status_code=403, detail="Permissão negada para atualizar este usuário")
+        raise HTTPException(status_code=403, detail="authorization.user_update_denied")
 
     if not current_user.is_admin:
         data.is_admin = None

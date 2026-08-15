@@ -23,7 +23,7 @@ def success_response(data: Any = None, message: str = "common.success", **kwargs
 
 def error_response(message: str = "common.request_error", detail: Any = None, **kwargs) -> dict:
     translated_message = _(message, **kwargs)
-    translated_detail = _(detail) if isinstance(detail, str) else detail
+    translated_detail = _(detail, **kwargs) if isinstance(detail, str) else detail
     return {
         "success": False,
         "message": translated_message,

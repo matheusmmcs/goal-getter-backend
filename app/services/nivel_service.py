@@ -18,7 +18,7 @@ def list_all(db: Session, page: int, size: int):
 def get_by_id(db: Session, id: str) -> Nivel:
     nivel = db.query(Nivel).filter(Nivel.id == id, Nivel.inativo == False).first()
     if not nivel:
-        raise HTTPException(status_code=404, detail="Nível não encontrado")
+        raise HTTPException(status_code=404, detail="level.not_found")
     return nivel
 
 def create(db: Session, data) -> Nivel:

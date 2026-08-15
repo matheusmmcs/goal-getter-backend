@@ -26,20 +26,20 @@ def _validate_and_compute_is_atrasado(config: DiarioConfig, target_date: date) -
 
     if target_date > today:
         raise HTTPException(
-            status_code=400, detail="Não é possível registrar diário para datas futuras"
+            status_code=400, detail="daily_item.future_date_not_allowed"
         )
 
     if target_date < today:
         if not config.is_retroativo:
             raise HTTPException(
                 status_code=400,
-                detail="Preenchimento para datas retroativas não é permitido neste grupo",
+                detail="daily_item.past_date_not_allowed",
             )
         if config.is_permite_atrasado:
             return True
         raise HTTPException(
             status_code=400,
-            detail="O horário de preenchimento para esta data já passou e envios atrasados não são permitidos",
+            detail="daily_item.late_submission_not_allowed",
         )
 
     # target_date == today
@@ -51,7 +51,10 @@ def _validate_and_compute_is_atrasado(config: DiarioConfig, target_date: date) -
                     return True
                 raise HTTPException(
                     status_code=400,
-                    detail=f"O horário de preenchimento do diário encerrou às {config.periodo_addnota_fim} e envios atrasados não são permitidos",
+                    detail={
+                        "key": "daily_item.window_closed",
+                        "params": {"time": config.periodo_addnota_fim},
+                    },
                 )
         except ValueError:
             pass
@@ -64,7 +67,7 @@ def _build_date(year: int, month: int, day: int) -> date:
     try:
         return date(year, month, day)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Data inválida")
+        raise HTTPException(status_code=400, detail="daily_item.invalid_date")
 
 
 def get_items_by_month(db: Session, config_id: UUID, year: int, month: int):
@@ -125,7 +128,7 @@ def get_item_by_id(
         .first()
     )
     if not item:
-        raise HTTPException(status_code=404, detail="Registro daily não encontrado")
+        raise HTTPException(status_code=404, detail="daily_item.not_found")
     return item
 
 
@@ -165,7 +168,7 @@ def _validate_notas_payload(data: DiarioItemCreate):
     if not yesterday_notes:
         raise HTTPException(
             status_code=400,
-            detail="É obrigatório informar pelo menos uma atividade em 'O que fiz ontem'",
+            detail="daily_item.yesterday_required",
         )
 
     today_notes = [
@@ -175,7 +178,7 @@ def _validate_notas_payload(data: DiarioItemCreate):
     if not today_notes:
         raise HTTPException(
             status_code=400,
-            detail="É obrigatório informar pelo menos uma atividade em 'O que fiz hoje'",
+            detail="daily_item.today_required",
         )
 
 
@@ -193,7 +196,7 @@ def create_item(
     # 1. Find config
     config = db.query(DiarioConfig).filter(DiarioConfig.id == config_id).first()
     if not config:
-        raise HTTPException(status_code=404, detail="Configuração daily não encontrada")
+        raise HTTPException(status_code=404, detail="daily_config.not_found")
 
     # 2. Find user's atribuição in the config's group
     atribuicao = (
@@ -207,7 +210,7 @@ def create_item(
     )
     if not atribuicao:
         raise HTTPException(
-            status_code=403, detail="Usuário não pertence a este grupo"
+            status_code=403, detail="daily_item.user_not_in_group"
         )
 
     # 3. Check uniqueness: 1 item per day per config per user
@@ -225,7 +228,7 @@ def create_item(
     if existing:
         raise HTTPException(
             status_code=400,
-            detail="Já existe um registro daily para este dia",
+            detail="daily_item.already_exists",
         )
 
     # 4. Compute is_atrasado automatically based on server time and config
@@ -251,7 +254,10 @@ def create_item(
         except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail=f"Tipo de anotação inválido: {tipo_key}. Use: TODAY, YESTERDAY, IMPEDIMENT",
+                detail={
+                    "key": "daily_item.invalid_annotation_type",
+                    "params": {"type": tipo_key},
+                },
             )
 
         for nota in notas_list:
@@ -307,11 +313,11 @@ def update_item(
         .first()
     )
     if not item:
-        raise HTTPException(status_code=404, detail="Registro daily não encontrado")
+        raise HTTPException(status_code=404, detail="daily_item.not_found")
 
     config = item.config or db.query(DiarioConfig).filter(DiarioConfig.id == config_id).first()
     if not config:
-        raise HTTPException(status_code=404, detail="Configuração daily não encontrada")
+        raise HTTPException(status_code=404, detail="daily_config.not_found")
 
     target_date = _build_date(year, month, day)
 
@@ -366,7 +372,7 @@ def get_report(
     except ValueError:
         raise HTTPException(
             status_code=400,
-            detail="Formato de data inválido. Use YYYY-MM-DD.",
+            detail="daily_item.invalid_date_format",
         )
 
     items = (

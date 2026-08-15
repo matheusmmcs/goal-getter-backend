@@ -39,7 +39,7 @@ def get_by_id(db: Session, id: UUID) -> GrupoTrabalho:
         selectinload(GrupoTrabalho.unidade)
     ).filter(GrupoTrabalho.id == id, GrupoTrabalho.inativo == False).first()
     if not grupo:
-        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+        raise HTTPException(status_code=404, detail="group.not_found")
     return grupo
 
 
@@ -52,9 +52,9 @@ def _assign_users_to_group(
     id_organizacao: UUID | None = None,
 ):
     if not usuarios_chefes:
-        raise HTTPException(status_code=400, detail="O grupo deve ter pelo menos 1 chefe")
+        raise HTTPException(status_code=400, detail="group.at_least_one_chief")
     if not usuarios_participantes:
-        raise HTTPException(status_code=400, detail="O grupo deve ter pelo menos 1 participante")
+        raise HTTPException(status_code=400, detail="group.at_least_one_participant")
 
     chefes_set = set(str(uid) for uid in usuarios_chefes)
     chefes_registradores_set = set(str(uid) for uid in (chefes_registradores or []))
@@ -63,7 +63,7 @@ def _assign_users_to_group(
     if intersect:
         raise HTTPException(
             status_code=400,
-            detail="Um usuário não pode ser chefe e participante ao mesmo tempo",
+            detail="group.user_cannot_be_both",
         )
 
     # Validar que todos os usuários pertencem à organização quando id_organizacao fornecido
@@ -78,7 +78,7 @@ def _assign_users_to_group(
         if valid_count < len(all_user_ids):
             raise HTTPException(
                 status_code=400,
-                detail="Todos os chefes e participantes devem pertencer à organização deste grupo",
+                detail="group.members_must_belong_to_organization",
             )
 
     nivel_chefe = db.query(Nivel).filter(Nivel.valor == NivelCodigoEnum.GESTOR_GRUPO.value).first()
@@ -87,7 +87,7 @@ def _assign_users_to_group(
     if not nivel_chefe or not nivel_participante:
         raise HTTPException(
             status_code=500,
-            detail=f"Níveis {NivelCodigoEnum.GESTOR_GRUPO.value} (Gestor) ou {NivelCodigoEnum.PARTICIPANTE.value} (Participante) não configurados no sistema",
+            detail="group.assignment_levels_not_configured",
         )
 
     existing_atribuicoes = (
@@ -159,7 +159,7 @@ def update_in_unidade(
 ) -> GrupoTrabalho:
     grupo = get_by_id(db, grupo_id)
     if str(grupo.id_unidade) != str(unidade_id):
-        raise HTTPException(status_code=400, detail="Grupo não pertence a esta unidade")
+        raise HTTPException(status_code=400, detail="group.not_in_unit")
 
     update_data = data.model_dump(
         exclude_unset=True, exclude={"usuarios_chefes", "usuarios_participantes", "chefes_registradores"}

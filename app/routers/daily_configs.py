@@ -33,7 +33,7 @@ def update_config(config_id: UUID, payload: DiarioConfigUpdate, db: Session = De
     daily_permission_service.require_config_access(db, current_user, config_id)
     config = db.query(daily_config_service.DiarioConfig).filter(daily_config_service.DiarioConfig.id == config_id, daily_config_service.DiarioConfig.inativo == False).first()
     if not config:
-        raise HTTPException(status_code=404, detail="Configuração daily não encontrada")
+        raise HTTPException(status_code=404, detail="daily_config.not_found")
     if config.id_grupo:
         daily_permission_service.require_config_edit_access(db, current_user, config.id_grupo)
     elif not current_user.is_admin:
@@ -41,7 +41,7 @@ def update_config(config_id: UUID, payload: DiarioConfigUpdate, db: Session = De
         if not daily_permission_service.is_user_org_gestor(db, current_user.id, org_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Apenas Administradores ou Gestores da Organização podem editar configurações de unidade",
+                detail="authorization.unit_daily_config_edit_denied",
             )
     data = daily_config_service.update_config(db, config_id, payload)
     return success_response(data=data, message="daily_config.updated")

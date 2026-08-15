@@ -76,7 +76,7 @@ def get_by_id(db: Session, user_id: UUID, include_inactive: bool = True) -> Usua
         query = query.filter(Usuario.inativo == False)
     user = query.first()
     if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=404, detail="user.not_found")
     return user
 
 import re
@@ -89,26 +89,26 @@ def create(db: Session, data: UsuarioCreate) -> Usuario:
         user_data["usuario"] = user_data["usuario"].strip()
         existing = db.query(Usuario).filter(Usuario.usuario.ilike(user_data["usuario"])).first()
         if existing:
-            raise HTTPException(status_code=400, detail="Nome de usuário já está em uso")
+            raise HTTPException(status_code=400, detail="user.username_taken")
 
     if user_data.get("email"):
         user_data["email"] = user_data["email"].strip()
         existing = db.query(Usuario).filter(Usuario.email.ilike(user_data["email"])).first()
         if existing:
-            raise HTTPException(status_code=400, detail="E-mail já está cadastrado")
+            raise HTTPException(status_code=400, detail="user.email_taken")
 
     if user_data.get("nickname"):
         user_data["nickname"] = user_data["nickname"].strip()
         existing = db.query(Usuario).filter(Usuario.nickname.ilike(user_data["nickname"])).first()
         if existing:
-            raise HTTPException(status_code=400, detail="Nickname já está em uso")
+            raise HTTPException(status_code=400, detail="user.nickname_taken")
 
     if user_data.get("cpf"):
         user_data["cpf"] = re.sub(r'\D', '', str(user_data["cpf"]))
         if user_data["cpf"]:
             existing = db.query(Usuario).filter(Usuario.cpf == user_data["cpf"]).first()
             if existing:
-                raise HTTPException(status_code=400, detail="CPF já está cadastrado")
+                raise HTTPException(status_code=400, detail="user.cpf_taken")
         else:
             user_data["cpf"] = None
 
@@ -135,20 +135,20 @@ def update(db: Session, user_id: UUID, data: UsuarioUpdate) -> Usuario:
         update_data["usuario"] = update_data["usuario"].strip()
         existing = db.query(Usuario).filter(Usuario.usuario.ilike(update_data["usuario"]), Usuario.id != user_id).first()
         if existing:
-            raise HTTPException(status_code=400, detail="Nome de usuário já está em uso")
+            raise HTTPException(status_code=400, detail="user.username_taken")
 
     if "email" in update_data and update_data["email"]:
         update_data["email"] = update_data["email"].strip()
         existing = db.query(Usuario).filter(Usuario.email.ilike(update_data["email"]), Usuario.id != user_id).first()
         if existing:
-            raise HTTPException(status_code=400, detail="E-mail já está cadastrado")
+            raise HTTPException(status_code=400, detail="user.email_taken")
 
     if "nickname" in update_data:
         if update_data["nickname"] and update_data["nickname"].strip():
             update_data["nickname"] = update_data["nickname"].strip()
             existing = db.query(Usuario).filter(Usuario.nickname.ilike(update_data["nickname"]), Usuario.id != user_id).first()
             if existing:
-                raise HTTPException(status_code=400, detail="Nickname já está em uso")
+                raise HTTPException(status_code=400, detail="user.nickname_taken")
         else:
             update_data["nickname"] = None
 
@@ -158,7 +158,7 @@ def update(db: Session, user_id: UUID, data: UsuarioUpdate) -> Usuario:
             if update_data["cpf"]:
                 existing = db.query(Usuario).filter(Usuario.cpf == update_data["cpf"], Usuario.id != user_id).first()
                 if existing:
-                    raise HTTPException(status_code=400, detail="CPF já está cadastrado")
+                    raise HTTPException(status_code=400, detail="user.cpf_taken")
             else:
                 update_data["cpf"] = None
         else:

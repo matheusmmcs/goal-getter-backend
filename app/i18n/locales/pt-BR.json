@@ -4,12 +4,12 @@
     "user_inactive": "Usuário inativo",
     "user_unauthorized": "Usuário não autorizado",
     "admin_required": "Acesso restrito a administradores",
-    "session_expired": "Sessão expirada. Faça login novamente.",
-    "login_success": "Login realizado com sucesso"
+    "login_success": "Login realizado com sucesso",
+    "register_success": "Usuário cadastrado com sucesso",
+    "username_checked": "Disponibilidade do nome de usuário verificada"
   },
   "user": {
     "not_found": "Usuário não encontrado",
-    "already_exists": "Já existe um usuário com este login",
     "listed": "Usuários listados",
     "found": "Usuário encontrado",
     "created": "Usuário criado",
@@ -17,7 +17,45 @@
     "deactivated": "Usuário desativado",
     "reactivated": "Usuário reativado",
     "atribuicoes_found": "Atribuições encontradas",
-    "perfis_found": "Perfis encontrados"
+    "perfis_found": "Perfis encontrados",
+    "name_required": "Nome é obrigatório",
+    "username_required": "Nome de usuário é obrigatório",
+    "username_taken": "Nome de usuário já está em uso",
+    "email_required": "E-mail é obrigatório",
+    "email_taken": "E-mail já está cadastrado",
+    "nickname_taken": "Nickname já está em uso",
+    "cpf_taken": "CPF já está cadastrado",
+    "password_too_short": "A senha deve ter no mínimo 8 caracteres"
+  },
+  "authorization": {
+    "organization_manager_required": "Acesso permitido apenas a Gestores da Organização ou Administradores",
+    "organization_member_required": "Acesso permitido apenas a membros vinculados a esta Organização ou Administradores",
+    "user_update_denied": "Permissão negada para atualizar este usuário",
+    "group_access_denied": "Acesso negado ao grupo de trabalho",
+    "daily_config_access_denied": "Acesso negado à configuração de diário do grupo",
+    "daily_config_edit_denied": "Acesso negado: apenas Gestores da Organização, Administradores ou Gestores do Grupo podem editar a configuração do diário"
+    ,"unit_daily_config_edit_denied": "Apenas Administradores ou Gestores da Organização podem editar configurações de unidade"
+  },
+  "organization": {
+    "not_found": "Organização não encontrada",
+    "user_link_not_found": "Vínculo de usuário não encontrado nesta organização",
+    "link_not_found": "Vínculo não encontrado",
+    "listed": "Organizações listadas",
+    "found": "Organização encontrada",
+    "created": "Organização criada",
+    "updated": "Organização atualizada",
+    "deactivated": "Organização desativada",
+    "users": {
+      "listed": "Usuários da organização listados"
+    },
+    "available_users": {
+      "listed": "Usuários disponíveis listados"
+    },
+    "vinculo": {
+      "created": "Vínculo criado",
+      "updated": "Vínculo atualizado",
+      "deactivated": "Vínculo desativado"
+    }
   },
   "unit": {
     "not_found": "Unidade não encontrada",
@@ -40,6 +78,8 @@
     "at_least_one_participant": "O grupo deve ter pelo menos 1 participante",
     "user_cannot_be_both": "Um usuário não pode ser chefe e participante ao mesmo tempo",
     "not_in_unit": "Grupo não pertence a esta unidade",
+    "members_must_belong_to_organization": "Todos os chefes e participantes devem pertencer à organização deste grupo",
+    "assignment_levels_not_configured": "Os níveis necessários para atribuição ao grupo não estão configurados no sistema",
     "listed": "Grupos listados",
     "found": "Grupo encontrado",
     "created": "Grupo criado",
@@ -49,7 +89,6 @@
     "updated_in_unit": "Grupo atualizado na unidade"
   },
   "daily_config": {
-    "group_not_found": "Grupo não encontrado",
     "not_found": "Configuração daily não encontrada",
     "already_exists": "Este grupo já possui uma configuração de diário",
     "retrieved": "Configuração recuperada",
@@ -58,7 +97,6 @@
     "updated": "Configuração atualizada com sucesso"
   },
   "daily_item": {
-    "config_not_found": "Configuração daily não encontrada",
     "user_not_in_group": "Usuário não pertence a este grupo",
     "already_exists": "Já existe um registro daily para este dia",
     "future_date_not_allowed": "Não é possível registrar diário para datas futuras",
@@ -68,6 +106,9 @@
     "invalid_date": "Data inválida",
     "not_found": "Registro daily não encontrado",
     "invalid_annotation_type": "Tipo de anotação inválido: {type}. Use: TODAY, YESTERDAY, IMPEDIMENT",
+    "yesterday_required": "É obrigatório informar pelo menos uma atividade em 'O que fiz ontem'",
+    "today_required": "É obrigatório informar pelo menos uma atividade em 'O que fiz hoje'",
+    "invalid_date_format": "Formato de data inválido. Use YYYY-MM-DD.",
     "month_retrieved": "Registros do mês recuperados",
     "day_retrieved": "Registros do dia recuperados",
     "retrieved": "Registro recuperado",
@@ -89,12 +130,27 @@
     "entregas_retrieved": "Entregas do Petrvs recuperadas",
     "entregas_ativas_retrieved": "Entregas ativas do Petrvs recuperadas"
   },
+  "openapi": {
+    "report_start_date": "Data inicial (YYYY-MM-DD)",
+    "report_end_date": "Data final (YYYY-MM-DD)",
+    "report_group_id": "Identificador do grupo"
+  },
+  "validation": {
+    "required": "Este campo é obrigatório",
+    "invalid": "Valor inválido",
+    "string_too_short": "O texto é menor que o tamanho mínimo permitido",
+    "string_too_long": "O texto excede o tamanho máximo permitido",
+    "string_pattern_mismatch": "O formato informado é inválido",
+    "greater_than": "O valor deve ser maior que {gt}",
+    "greater_than_equal": "O valor deve ser maior ou igual a {ge}",
+    "less_than": "O valor deve ser menor que {lt}",
+    "less_than_equal": "O valor deve ser menor ou igual a {le}"
+  },
   "common": {
     "success": "Operação realizada com sucesso",
     "request_error": "Ocorreu um erro na requisição",
     "invalid_data": "Dados inválidos",
     "invalid_request_data": "Dados de requisição inválidos",
-    "internal_error": "Ocorreu um erro interno no servidor. Tente novamente mais tarde.",
-    "access_denied": "Você não tem permissão para realizar esta operação."
+    "internal_error": "Ocorreu um erro interno no servidor. Tente novamente mais tarde."
   }
 }

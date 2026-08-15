@@ -86,6 +86,15 @@ app/
   poetry run alembic upgrade head
   ```
 
+### 9. Internacionalização de Respostas Públicas
+- Todo texto exposto pela API deve ser uma chave explícita dos catálogos `app/i18n/locales/pt-BR.json` e `en-US.json`; nunca use texto literal em `HTTPException.detail`, `success_response` ou `error_response`.
+- Mantenha os dois catálogos com exatamente as mesmas chaves e placeholders de interpolação. O teste `tests/test_i18n.py` valida paridade, referências estáticas e chaves órfãs.
+- Reutilize chaves existentes para frases de mesma semântica. Só adicione uma nova chave quando a regra de negócio ou o contexto realmente diferir.
+- Erros devem manter chaves no serviço/router; `app/core/exceptions.py` é o único limite que os converte em `message` e `detail` localizados conforme `Accept-Language`, além de definir `Content-Language`.
+- Para erros com valores dinâmicos, use `detail={"key": "dominio.chave", "params": {"nome": valor}}`; não monte textos com f-strings no serviço/router.
+- Nunca exponha `str(exc)`, logs, mensagens de bibliotecas ou detalhes de infraestrutura ao cliente. Use `common.internal_error` para falhas inesperadas.
+- Descrições OpenAPI são avaliadas na criação do schema e usam o locale padrão; não alegue que `/openapi.json` muda por `Accept-Language` sem implementar um endpoint de schema localizado.
+
 ---
 
 ## 🧪 Validação e Execução

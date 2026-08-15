@@ -15,7 +15,7 @@ def get_current_user(
 ) -> Usuario:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Não foi possível validar as credenciais",
+        detail="auth.invalid_credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -30,15 +30,15 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     if not user.ativo or user.inativo:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inativo")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="auth.user_inactive")
     if not user.is_autorizado:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuário não autorizado")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="auth.user_unauthorized")
         
     return user
 
 def require_admin(current_user: Annotated[Usuario, Depends(get_current_user)]) -> Usuario:
     if not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito a administradores")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="auth.admin_required")
     return current_user
 
 from uuid import UUID
@@ -76,7 +76,7 @@ def require_org_gestor(
     ).first()
 
     if not vinculo:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso permitido apenas a Gestores da Organização ou Administradores")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="authorization.organization_manager_required")
 
     return current_user
 
@@ -98,7 +98,7 @@ def require_org_member(
     ).first()
 
     if not vinculo:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso permitido apenas a membros vinculados a esta Organização ou Administradores")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="authorization.organization_member_required")
 
     return current_user
 

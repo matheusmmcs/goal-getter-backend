@@ -31,35 +31,35 @@ def register_user(db: Session, data: UsuarioRegister) -> Usuario:
     if not nome_clean:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nome é obrigatório"
+            detail="user.name_required"
         )
 
     usuario_clean = data.usuario.strip()
     if not usuario_clean:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nome de usuário é obrigatório"
+            detail="user.username_required"
         )
 
     existing_user = db.query(Usuario).filter(Usuario.usuario.ilike(usuario_clean)).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nome de usuário já está em uso"
+            detail="user.username_taken"
         )
 
     email_clean = data.email.strip() if data.email else ""
     if not email_clean:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="E-mail é obrigatório"
+            detail="user.email_required"
         )
 
     existing_email = db.query(Usuario).filter(Usuario.email.ilike(email_clean)).first()
     if existing_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="E-mail já está cadastrado"
+            detail="user.email_taken"
         )
 
     nickname_clean = data.nickname.strip() if data.nickname and data.nickname.strip() else usuario_clean
@@ -68,7 +68,7 @@ def register_user(db: Session, data: UsuarioRegister) -> Usuario:
         if existing_nickname:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nickname já está em uso"
+                detail="user.nickname_taken"
             )
 
     cpf_digits = None
@@ -79,13 +79,13 @@ def register_user(db: Session, data: UsuarioRegister) -> Usuario:
             if existing_cpf:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="CPF já está cadastrado"
+                    detail="user.cpf_taken"
                 )
 
     if len(data.senha) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A senha deve ter no mínimo 8 caracteres"
+            detail="user.password_too_short"
         )
 
     now = now_in_app_timezone()
@@ -113,7 +113,7 @@ def login(db: Session, credentials: LoginRequest) -> dict:
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário ou senha incorretos",
+            detail="auth.invalid_credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -134,7 +134,7 @@ def login(db: Session, credentials: LoginRequest) -> dict:
     if not full_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário não encontrado",
+            detail="user.not_found",
         )
 
     # Coletar organizacoes ativas do usuario

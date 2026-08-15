@@ -71,7 +71,7 @@ def test_self_registration_duplicate_username(db):
     )
     with pytest.raises(Exception) as exc_info:
         auth_service.register_user(db, reg_data2)
-    assert "já está em uso" in str(exc_info.value)
+    assert exc_info.value.detail == "user.username_taken"
 
 
 def test_self_registration_duplicate_nickname(db):
@@ -93,7 +93,7 @@ def test_self_registration_duplicate_nickname(db):
     )
     with pytest.raises(Exception) as exc_info:
         auth_service.register_user(db, reg_data2)
-    assert "Nickname já está em uso" in str(exc_info.value)
+    assert exc_info.value.detail == "user.nickname_taken"
 
 
 def test_self_registration_duplicate_cpf(db):
@@ -115,7 +115,7 @@ def test_self_registration_duplicate_cpf(db):
     )
     with pytest.raises(Exception) as exc_info:
         auth_service.register_user(db, reg_data2)
-    assert "CPF já está cadastrado" in str(exc_info.value)
+    assert exc_info.value.detail == "user.cpf_taken"
 
 
 def test_self_registration_short_password(db):
@@ -127,7 +127,7 @@ def test_self_registration_short_password(db):
     )
     with pytest.raises(Exception) as exc_info:
         auth_service.register_user(db, reg_data)
-    assert "mínimo 8 caracteres" in str(exc_info.value)
+    assert exc_info.value.detail == "user.password_too_short"
 
 
 def test_admin_deactivate_and_reactivate_timestamps(db):

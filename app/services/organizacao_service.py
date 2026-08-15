@@ -87,7 +87,7 @@ def list_organizacoes_for_user(
 def get_by_id(db: Session, id: UUID) -> Organizacao:
     org = db.query(Organizacao).filter(Organizacao.id == id).first()
     if not org:
-        raise HTTPException(status_code=404, detail="Organização não encontrada")
+        raise HTTPException(status_code=404, detail="organization.not_found")
     return org
 
 
@@ -192,7 +192,7 @@ def adicionar_vinculo_usuario(db: Session, org_id: UUID, item: UsuarioVinculoIte
     org = get_by_id(db, org_id)
     usuario = db.query(Usuario).filter(Usuario.id == item.id_usuario, Usuario.inativo == False).first()
     if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=404, detail="user.not_found")
 
     vinculo = db.query(UsuarioOrganizacao).filter(
         UsuarioOrganizacao.id_organizacao == org_id,
@@ -222,7 +222,7 @@ def atualizar_vinculo_usuario(db: Session, org_id: UUID, usuario_id: UUID, data:
     ).first()
 
     if not vinculo:
-        raise HTTPException(status_code=404, detail="Vínculo de usuário não encontrado nesta organização")
+        raise HTTPException(status_code=404, detail="organization.user_link_not_found")
 
     vinculo.papel_organizacao = data.papel_organizacao
     if data.inativo is not None:
@@ -240,11 +240,11 @@ def desativar_vinculo_usuario(db: Session, org_id: UUID, usuario_id: UUID):
     ).first()
 
     if not vinculo:
-        raise HTTPException(status_code=404, detail="Vínculo não encontrado")
+        raise HTTPException(status_code=404, detail="organization.link_not_found")
 
     vinculo.inativo = True
     db.commit()
-    return {"message": "Vínculo desativado com sucesso"}
+    return {"success": True}
 
 
 def listar_usuarios_detalhados_organizacao(db: Session, org_id: UUID):

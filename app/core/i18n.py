@@ -11,14 +11,12 @@ SUPPORTED_LOCALES = {"pt-BR", "en-US"}
 
 _current_locale_var: ContextVar[str] = ContextVar("current_locale", default=DEFAULT_LOCALE)
 _translations: Dict[str, Dict[str, Any]] = {}
-_reverse_lookup: Dict[str, str] = {}
 
 
 def load_translations() -> None:
-    global _translations, _reverse_lookup
+    global _translations
     locales_dir = Path(__file__).parent.parent / "i18n" / "locales"
     _translations.clear()
-    _reverse_lookup.clear()
 
     for locale in SUPPORTED_LOCALES:
         file_path = locales_dir / f"{locale}.json"
@@ -27,17 +25,6 @@ def load_translations() -> None:
                 with open(file_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     _translations[locale] = data
-
-                    # Build reverse lookup for pt-BR literal strings to translation keys
-                    if locale == DEFAULT_LOCALE:
-                        def _index_keys(dict_obj: dict, prefix: str = ""):
-                            for k, v in dict_obj.items():
-                                key_path = f"{prefix}.{k}" if prefix else k
-                                if isinstance(v, dict):
-                                    _index_keys(v, key_path)
-                                elif isinstance(v, str):
-                                    _reverse_lookup[v] = key_path
-                        _index_keys(data)
             except Exception as e:
                 logger.error(f"Erro ao carregar traduções para {locale}: {e}")
 
@@ -84,10 +71,6 @@ def translate(key: str, locale: str | None = None, **kwargs) -> str:
     target_locale = locale or get_current_locale()
     if target_locale not in SUPPORTED_LOCALES:
         target_locale = DEFAULT_LOCALE
-
-    # If key is actually a literal Portuguese string found in _reverse_lookup, resolve to key_path
-    if key in _reverse_lookup:
-        key = _reverse_lookup[key]
 
     locale_dict = _translations.get(target_locale, {})
     

@@ -86,7 +86,7 @@ def get_config(db: Session, config_id: UUID):
     )
     if not config:
         raise HTTPException(
-            status_code=404, detail="Configuração daily não encontrada"
+            status_code=404, detail="daily_config.not_found"
         )
     return {
         "id": config.id,
@@ -114,7 +114,7 @@ def get_config_by_group(db: Session, group_id: UUID, current_user):
         .first()
     )
     if not grupo:
-        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+        raise HTTPException(status_code=404, detail="group.not_found")
 
     config = (
         db.query(DiarioConfig)
@@ -169,7 +169,7 @@ def get_config_by_group(db: Session, group_id: UUID, current_user):
         )
 
     if not config:
-        raise HTTPException(status_code=404, detail="Configuração daily não encontrada")
+        raise HTTPException(status_code=404, detail="daily_config.not_found")
 
     # Check if user has a daily entry for today
     today = now_in_app_timezone().date()
@@ -221,13 +221,13 @@ def create_config(db: Session, group_id: UUID, data):
     """Create a new daily config for a group."""
     grupo = db.query(GrupoTrabalho).filter(GrupoTrabalho.id == group_id, GrupoTrabalho.inativo == False).first()
     if not grupo:
-        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+        raise HTTPException(status_code=404, detail="group.not_found")
 
     existing = db.query(DiarioConfig).filter(
         DiarioConfig.id_grupo == group_id, DiarioConfig.inativo == False
     ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Este grupo já possui uma configuração de diário")
+        raise HTTPException(status_code=400, detail="daily_config.already_exists")
 
     new_config = DiarioConfig(
         id_grupo=group_id,
@@ -248,7 +248,7 @@ def update_config(db: Session, config_id: UUID, data):
     """Update an existing daily config."""
     config = db.query(DiarioConfig).filter(DiarioConfig.id == config_id, DiarioConfig.inativo == False).first()
     if not config:
-        raise HTTPException(status_code=404, detail="Configuração daily não encontrada")
+        raise HTTPException(status_code=404, detail="daily_config.not_found")
 
     update_dict = data.model_dump(exclude_unset=True)
     for key, value in update_dict.items():

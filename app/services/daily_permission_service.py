@@ -189,7 +189,7 @@ def require_group_access(db: Session, current_user: Usuario, group_id: UUID):
     if not check_user_can_access_group(db, current_user, group_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado ao grupo de trabalho",
+            detail="authorization.group_access_denied",
         )
 
 
@@ -197,7 +197,7 @@ def require_config_access(db: Session, current_user: Usuario, config_id: UUID):
     if not check_user_can_access_config(db, current_user, config_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado à configuração de diário do grupo",
+            detail="authorization.daily_config_access_denied",
         )
 
 
@@ -205,5 +205,5 @@ def require_config_edit_access(db: Session, current_user: Usuario, group_id: UUI
     if not check_user_can_edit_config(db, current_user, group_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado: apenas Gestores da Organização, Administradores ou Gestores do Grupo podem editar a configuração do diário",
+            detail="authorization.daily_config_edit_denied",
         )
