@@ -128,6 +128,7 @@ Documentação interativa completa disponível em **Swagger UI**: `http://localh
 | Arquivo | Ambiente | Banco | Hot Reload |
 |---|---|---|---|
 | `docker-compose.yml` | **Desenvolvimento** | Portas 8881 (API) e 5472 (DB) expostas | ✅ Volume mount |
+| `docker-compose.test.yml` | **Testes / CI** | Ambiente isolado com dependências de dev (`Dockerfile.dev`) | ✅ Volume mount |
 | `docker-compose-hmg.yml` | **Homologação** | Porta interna | ❌ Imagem pura |
 | `docker-compose-prod.yml` | **Produção** | Porta interna, restart policy | ❌ Imagem pura |
 
@@ -147,14 +148,31 @@ docker compose -f docker-compose-prod.yml up --build -d
 ## 🧪 Testes
 
 ```bash
+# ==========================================
+# 1. Execução Local (Poetry)
+# ==========================================
+
 # Rodar todos os testes
 poetry run pytest -v
 
-# Com cobertura de código
+# Rodar testes com cobertura de código
 poetry run pytest --cov=app --cov-report=term-missing
 
 # Checagem de tipo estático
 poetry run pyrefly check
+
+# ==========================================
+# 2. Execução via Docker (Ambiente Isolado)
+# ==========================================
+
+# Executar testes em container temporário (usando Dockerfile.dev)
+docker compose -f docker-compose.test.yml run --rm test
+
+# Executar testes com relatório de cobertura
+docker compose -f docker-compose.test.yml run --rm test poetry run pytest --cov=app --cov-report=term-missing
+
+# Executar checagem de tipos estáticos (Pyrefly)
+docker compose -f docker-compose.test.yml run --rm test poetry run pyrefly check
 ```
 
 ---

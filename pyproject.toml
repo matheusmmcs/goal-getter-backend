@@ -43,3 +43,6 @@ build-backend = "poetry.core.masonry.api"
 venvPath = "."
 venv = ".venv"
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+

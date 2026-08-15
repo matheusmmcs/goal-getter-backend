@@ -107,11 +107,17 @@ app/
 # Executar servidor local de desenvolvimento
 poetry run dev
 
-# Rodar os testes automatizados
+# Rodar os testes automatizados (Local / Poetry)
 poetry run pytest
 
-# Testes com cobertura
+# Testes com cobertura (Local / Poetry)
 poetry run pytest --cov=app --cov-report=term-missing
+
+# Checagem de tipos estáticos
+poetry run pyrefly check
+
+# Executar testes via Docker (Ambiente isolado com Dockerfile.dev)
+docker compose -f docker-compose.test.yml run --rm test
 ```
 
 ---

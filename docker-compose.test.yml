@@ -1,0 +1,15 @@
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - DATABASE_URL=postgresql://goaluser:goalpass@db:5432/goalgetterdb
+      - SECRET_KEY=test_secret_key_environment_variable_for_ci_local
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=120
+      - ENVIRONMENT=testing
+    command: poetry run pytest -v

@@ -21,7 +21,7 @@ def main():
         extra_args = args
 
     print("🔍 Executando verificação de tipos estáticos com Pyrefly...")
-    cmd = [sys.executable, "-m", "pyright"] + extra_args
+    cmd = [sys.executable, "-m", "pyright", "--pythonpath", sys.executable] + extra_args
     result = subprocess.run(cmd)
     sys.exit(result.returncode)
 

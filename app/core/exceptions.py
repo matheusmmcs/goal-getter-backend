@@ -29,7 +29,8 @@ VALIDATION_ERROR_KEYS = {
 
 def _localize_validation_error(error: dict) -> dict:
     localized_error = dict(error)
-    error_key = VALIDATION_ERROR_KEYS.get(error.get("type"), "validation.invalid")
+    error_type = error.get("type")
+    error_key = VALIDATION_ERROR_KEYS.get(str(error_type) if error_type is not None else "", "validation.invalid")
     context = error.get("ctx") or {}
     localized_error["msg"] = _(error_key, **context)
     return localized_error
