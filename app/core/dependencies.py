@@ -1,11 +1,15 @@
 from typing import Annotated
-from fastapi import Depends, HTTPException, status
+from uuid import UUID
+from fastapi import Depends, HTTPException, status, Header, Query
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.usuario import Usuario
+from app.models.organizacao import Organizacao
+from app.models.usuario_organizacao import UsuarioOrganizacao
+from app.models.enums import PapelOrganizacaoEnum
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='api/auth/login')
 
@@ -41,32 +45,98 @@ def require_admin(current_user: Annotated[Usuario, Depends(get_current_user)]) -
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="auth.admin_required")
     return current_user
 
-from uuid import UUID
-from fastapi import Header, Query
+def require_active_organization(
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_organization_id: Annotated[str | None, Header(alias="X-Organization-Id")] = None,
+    id_organizacao: Annotated[UUID | None, Query()] = None,
+) -> Organizacao:
+    target_raw_id = id_organizacao or x_organization_id
+    if not target_raw_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="organization.organization_required"
+        )
+    try:
+        org_id = UUID(str(target_raw_id))
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="organization.invalid_id_format"
+        )
+
+    org = db.query(Organizacao).filter(
+        Organizacao.id == org_id,
+        Organizacao.inativo == False
+    ).first()
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="organization.not_found_or_inactive"
+        )
+
+    if not current_user.is_admin:
+        vinculo = db.query(UsuarioOrganizacao).filter(
+            UsuarioOrganizacao.id_organizacao == org_id,
+            UsuarioOrganizacao.id_usuario == current_user.id,
+            UsuarioOrganizacao.inativo == False
+        ).first()
+        if not vinculo:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="authorization.organization_member_required"
+            )
+
+    return org
 
 def get_current_organization_id(
-    x_organization_id: str | None = Header(default=None, alias="X-Organization-Id"),
-    id_organizacao: UUID | None = Query(default=None),
+    current_user: Annotated[Usuario, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_organization_id: Annotated[str | None, Header(alias="X-Organization-Id")] = None,
+    id_organizacao: Annotated[UUID | None, Query()] = None,
 ) -> UUID | None:
-    if id_organizacao:
-        return id_organizacao
-    if x_organization_id:
-        try:
-            return UUID(x_organization_id)
-        except (ValueError, TypeError):
-            return None
-    return None
+    raw_id = id_organizacao or x_organization_id
+    if not raw_id:
+        return None
+    try:
+        org_id = UUID(str(raw_id))
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="organization.invalid_id_format"
+        )
+
+    org = db.query(Organizacao).filter(
+        Organizacao.id == org_id,
+        Organizacao.inativo == False
+    ).first()
+    if not org:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="organization.not_found_or_inactive"
+        )
+
+    if not current_user.is_admin:
+        vinculo = db.query(UsuarioOrganizacao).filter(
+            UsuarioOrganizacao.id_organizacao == org_id,
+            UsuarioOrganizacao.id_usuario == current_user.id,
+            UsuarioOrganizacao.inativo == False
+        ).first()
+        if not vinculo:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="authorization.organization_member_required"
+            )
+
+    return org_id
 
 def require_org_gestor(
-    org_id: str,
+    org_id: str | UUID,
     current_user: Annotated[Usuario, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)]
 ) -> Usuario:
     if current_user.is_admin:
         return current_user
-
-    from app.models.usuario_organizacao import UsuarioOrganizacao
-    from app.models.enums import PapelOrganizacaoEnum
 
     vinculo = db.query(UsuarioOrganizacao).filter(
         UsuarioOrganizacao.id_organizacao == org_id,
@@ -80,16 +150,13 @@ def require_org_gestor(
 
     return current_user
 
-
 def require_org_member(
-    org_id: str,
+    org_id: str | UUID,
     current_user: Annotated[Usuario, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)]
 ) -> Usuario:
     if current_user.is_admin:
         return current_user
-
-    from app.models.usuario_organizacao import UsuarioOrganizacao
 
     vinculo = db.query(UsuarioOrganizacao).filter(
         UsuarioOrganizacao.id_organizacao == org_id,
@@ -101,5 +168,6 @@ def require_org_member(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="authorization.organization_member_required")
 
     return current_user
+
 
 

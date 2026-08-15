@@ -280,3 +280,61 @@ def test_unidade_auto_generate_nome_ascii(db):
     assert unidade_atualizada.nome_ascii == "Superintendencia de Informatica"
 
 
+def test_require_active_organization_and_anti_tampering(db):
+    from fastapi import HTTPException
+    from app.core.dependencies import require_active_organization, get_current_organization_id
+    import uuid
+
+    # Criar duas organizações
+    org1 = organizacao_service.create_organizacao(db, OrganizacaoCreate(nome="Org Alfa", sigla="OA"))
+    org2 = organizacao_service.create_organizacao(db, OrganizacaoCreate(nome="Org Beta", sigla="OB"))
+
+    # Criar usuário membro da Org Alfa apenas
+    user_member = Usuario(usuario="member1", nome="Member", senha="p", is_admin=False, is_autorizado=True)
+    admin_user = Usuario(usuario="admin1", nome="Admin", senha="p", is_admin=True, is_autorizado=True)
+    db.add_all([user_member, admin_user])
+    db.commit()
+
+    organizacao_service.adicionar_vinculo_usuario(
+        db, org1.id, UsuarioVinculoItem(id_usuario=user_member.id, papel_organizacao=PapelOrganizacaoEnum.MEMBRO)
+    )
+
+    # 1. Falha quando header é omitido
+    with pytest.raises(HTTPException) as exc1:
+        require_active_organization(current_user=user_member, db=db, x_organization_id=None)
+    assert exc1.value.status_code == 400
+    assert exc1.value.detail == "organization.organization_required"
+
+    # 2. Falha quando UUID é inválido
+    with pytest.raises(HTTPException) as exc2:
+        require_active_organization(current_user=user_member, db=db, x_organization_id="invalid-uuid-format")
+    assert exc2.value.status_code == 400
+    assert exc2.value.detail == "organization.invalid_id_format"
+
+    # 3. Falha quando organização não existe ou está inativa
+    non_existent_uuid = str(uuid.uuid4())
+    with pytest.raises(HTTPException) as exc3:
+        require_active_organization(current_user=user_member, db=db, x_organization_id=non_existent_uuid)
+    assert exc3.value.status_code == 404
+    assert exc3.value.detail == "organization.not_found_or_inactive"
+
+    # 4. Anti-tampering: Usuário comum tenta acessar Org Beta (onde NÃO tem vínculo ativo) -> 403
+    with pytest.raises(HTTPException) as exc4:
+        require_active_organization(current_user=user_member, db=db, x_organization_id=str(org2.id))
+    assert exc4.value.status_code == 403
+    assert exc4.value.detail == "authorization.organization_member_required"
+
+    # 5. Sucesso: Usuário comum acessa Org Alfa (onde tem vínculo ativo)
+    res_org = require_active_organization(current_user=user_member, db=db, x_organization_id=str(org1.id))
+    assert res_org.id == org1.id
+
+    # 6. Sucesso: Admin da plataforma acessa qualquer organização ativa sem vínculo direto
+    res_admin = require_active_organization(current_user=admin_user, db=db, x_organization_id=str(org2.id))
+    assert res_admin.id == org2.id
+
+    # 7. get_current_organization_id retorna org_id validado ou None se omitido
+    assert get_current_organization_id(current_user=user_member, db=db, x_organization_id=None) is None
+    assert get_current_organization_id(current_user=user_member, db=db, x_organization_id=str(org1.id)) == org1.id
+
+
+

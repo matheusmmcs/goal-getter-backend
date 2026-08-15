@@ -38,6 +38,9 @@
   },
   "organization": {
     "not_found": "Organization not found",
+    "organization_required": "Organization header (X-Organization-Id) is required",
+    "invalid_id_format": "Invalid organization identifier",
+    "not_found_or_inactive": "Organization not found or inactive",
     "user_link_not_found": "User link was not found in this organization",
     "link_not_found": "Link not found",
     "listed": "Organizations listed",

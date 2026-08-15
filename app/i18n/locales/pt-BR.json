@@ -38,6 +38,9 @@
   },
   "organization": {
     "not_found": "Organização não encontrada",
+    "organization_required": "O cabeçalho da organização (X-Organization-Id) é obrigatório",
+    "invalid_id_format": "Identificador de organização inválido",
+    "not_found_or_inactive": "Organização não encontrada ou inativa",
     "user_link_not_found": "Vínculo de usuário não encontrado nesta organização",
     "link_not_found": "Vínculo não encontrado",
     "listed": "Organizações listadas",

@@ -74,8 +74,12 @@ app/
 - `DiarioConfig` possui relacionamento opcional com `GrupoTrabalho` (`id_grupo`) e `Unidade` (`id_unidade`).
 - O serviço `daily_config_service.py` resolve primeiro a configuração do grupo e, caso inexistente, busca a configuração herdada da `Unidade`.
 
-### 7. Isolamento Estrito de Multi-Tenancy (Organizações)
-- **Extração de Contexto**: A dependência `get_current_organization_id` em `app/core/dependencies.py` lê `X-Organization-Id` (header) e `id_organizacao` (query param) como `UUID | None`.
+### 7. Isolamento Estrito de Multi-Tenancy e Segurança de Organizações
+- **Validação e Extração de Contexto**: As dependências `require_active_organization` e `get_current_organization_id` em `app/core/dependencies.py` leem `X-Organization-Id` (header) e validam:
+  1. Formato estrito de UUID v4.
+  2. Existência e status ativo da organização (`inativo == False`).
+  3. Existência de vínculo ativo do usuário (`UsuarioOrganizacao.inativo == False`), exceto para administradores da plataforma.
+- **Proteção Anti-Tampering / Tenant Hopping**: Se um usuário comum tentar enviar o ID de outra organização à qual não pertence, a API rejeita com `HTTP 403 Forbidden` (`authorization.organization_member_required`).
 - **Filtro Rigoroso**: É expressamente proibido usar `is_(None)` como fallback permissivo nas consultas de recursos (`Unidade`, `GrupoTrabalho`, `Usuario`, `Atribuicao`, `Perfil`). Apenas dados vinculados à organização solicitada devem ser retornados.
 - **Validação de Atribuição**: Ao criar ou editar grupos, todos os usuários (chefes e participantes) devem obrigatoriamente possuir vínculo ativo com a organização do grupo (`UsuarioOrganizacao`).
 
@@ -121,3 +125,4 @@ poetry run pytest --cov=app --cov-report=term-missing
 5. **Sempre** use índices únicos parciais (`WHERE inativo = false`) para chaves únicas.
 6. **Sempre** crie uma migração Alembic para alterações em `app/models/`.
 7. **Sempre** execute `pytest` antes de finalizar uma tarefa no backend.
+8. **Sempre** pense e implemente novas funcionalidades ou alterações com internacionalização (i18n), mantendo paridade estrita entre `pt-BR.json` e `en-US.json` e sem mensagens literais no código.
