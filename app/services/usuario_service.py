@@ -232,3 +232,67 @@ def get_perfis(db: Session, user_id: UUID, id_organizacao: UUID | None = None):
             Unidade.id_organizacao == id_organizacao
         )
     return query.all()
+
+def get_user_daily_notes(db: Session, user_id: UUID, dias: int = 30, id_organizacao: UUID | None = None):
+    from datetime import timedelta
+    from app.models.diario_item import DiarioItem
+    from app.models.diario_item_anotacao import DiarioItemAnotacao
+    from app.models.diario_config import DiarioConfig
+    from app.models.unidade import Unidade
+
+    today = now_in_app_timezone().date()
+    cutoff_date = today - timedelta(days=dias)
+
+    query = (
+        db.query(DiarioItemAnotacao, DiarioItem, Atribuicao, DiarioConfig, GrupoTrabalho)
+        .join(DiarioItem, DiarioItemAnotacao.id_diario_item == DiarioItem.id)
+        .join(Atribuicao, DiarioItem.id_atribuicao_usuario == Atribuicao.id)
+        .join(DiarioConfig, DiarioItem.id_diario_config == DiarioConfig.id)
+        .outerjoin(GrupoTrabalho, DiarioConfig.id_grupo == GrupoTrabalho.id)
+        .filter(
+            Atribuicao.id_usuario == user_id,
+            DiarioItemAnotacao.inativo == False,
+            DiarioItem.inativo == False,
+            DiarioItem.data_diario >= cutoff_date,
+        )
+    )
+
+    if id_organizacao:
+        query = query.outerjoin(
+            Unidade,
+            (GrupoTrabalho.id_unidade == Unidade.id) | (DiarioConfig.id_unidade == Unidade.id)
+        ).filter(
+            (GrupoTrabalho.id_organizacao == id_organizacao) |
+            (Unidade.id_organizacao == id_organizacao)
+        )
+
+    results = (
+        query
+        .order_by(DiarioItem.data_diario.desc(), DiarioItemAnotacao.created_at.desc())
+        .all()
+    )
+
+    notes = []
+    for anotacao, item, atrib, config, grupo in results:
+        unidade = grupo.unidade if grupo and grupo.unidade else (config.unidade if config else None)
+        tipo_val = anotacao.tipo.value if hasattr(anotacao.tipo, "value") else str(anotacao.tipo)
+        notes.append({
+            "id": str(anotacao.id),
+            "id_diario_item": str(item.id),
+            "data_diario": item.data_diario.isoformat() if item.data_diario else None,
+            "data": item.data_diario.isoformat() if item.data_diario else None,
+            "tipo": tipo_val,
+            "categoria": tipo_val,
+            "conteudo": anotacao.descricao or "",
+            "descricao": anotacao.descricao or "",
+            "id_tarefa": anotacao.id_tarefa,
+            "id_entrega": str(anotacao.id_entrega) if anotacao.id_entrega else None,
+            "petrvs_entrega_id": anotacao.petrvs_entrega_id,
+            "grupo_id": str(grupo.id) if grupo else None,
+            "grupo_nome": grupo.nome if grupo else "",
+            "unidade_id": str(unidade.id) if unidade else None,
+            "unidade_sigla": unidade.sigla if unidade else "",
+            "unidade_nome": unidade.nome if unidade else "",
+            "created_at": anotacao.created_at.isoformat() if anotacao.created_at else None,
+        })
+    return notes

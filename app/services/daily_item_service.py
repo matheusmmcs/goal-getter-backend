@@ -363,7 +363,12 @@ def update_item(
 
 
 def get_report(
-    db: Session, config_id: UUID, date_start: str, date_end: str, group_id: UUID
+    db: Session,
+    config_id: UUID,
+    date_start: str,
+    date_end: str,
+    group_id: UUID,
+    usuario_ids: list[UUID] | None = None,
 ) -> dict:
     """Generate report grouped by user name for a date range."""
     try:
@@ -375,7 +380,7 @@ def get_report(
             detail="daily_item.invalid_date_format",
         )
 
-    items = (
+    query = (
         db.query(DiarioItem)
         .join(Atribuicao, DiarioItem.id_atribuicao_usuario == Atribuicao.id)
         .filter(
@@ -385,11 +390,18 @@ def get_report(
             DiarioItem.data_diario <= end,
             DiarioItem.inativo == False,
         )
-        .options(
+    )
+
+    if usuario_ids:
+        query = query.filter(
+            (Atribuicao.id_usuario.in_(usuario_ids)) | (Atribuicao.id.in_(usuario_ids))
+        )
+
+    items = (
+        query.options(
             selectinload(DiarioItem.notas),
             joinedload(DiarioItem.atribuicao_usuario).joinedload(Atribuicao.usuario),
-        )
-        .all()
+        ).all()
     )
 
     report: dict[str, list] = {}

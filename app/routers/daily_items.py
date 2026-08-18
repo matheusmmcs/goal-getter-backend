@@ -96,10 +96,14 @@ def get_report(
     inicio: str = Query(..., description=_("openapi.report_start_date")),
     fim: str = Query(..., description=_("openapi.report_end_date")),
     grupo: UUID = Query(..., description=_("openapi.report_group_id")),
+    usuarios: list[UUID] | None = Query(None, description=_("openapi.report_users")),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     daily_permission_service.require_config_access(db, current_user, config_id)
     daily_permission_service.require_group_access(db, current_user, grupo)
-    data = daily_item_service.get_report(db, config_id, inicio, fim, grupo)
+    data = daily_item_service.get_report(
+        db, config_id, inicio, fim, grupo, usuario_ids=usuarios
+    )
     return success_response(data=data, message="daily_item.report_generated")
+

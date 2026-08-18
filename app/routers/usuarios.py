@@ -138,3 +138,18 @@ def get_user_perfis(
 ):
     result = usuario_service.get_perfis(db, id, id_organizacao)
     return success_response(data=result, message="user.perfis_found")
+
+
+@router.get("/{id}/daily")
+def get_user_daily_notes(
+    id: UUID,
+    dias: int = Query(30, ge=1, le=365),
+    id_organizacao: UUID | None = Depends(get_current_organization_id),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    result = usuario_service.get_user_daily_notes(
+        db, id, dias=dias, id_organizacao=id_organizacao
+    )
+    return success_response(data=result, message="user.daily_notes_found")
+

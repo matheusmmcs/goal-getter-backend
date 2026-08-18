@@ -18,6 +18,7 @@
     "reactivated": "User reactivated",
     "atribuicoes_found": "Assignments found",
     "perfis_found": "Profiles found",
+    "daily_notes_found": "Daily notes found",
     "name_required": "Name is required",
     "username_required": "Username is required",
     "username_taken": "Username is already in use",
@@ -154,7 +155,8 @@
   "openapi": {
     "report_start_date": "Start date (YYYY-MM-DD)",
     "report_end_date": "End date (YYYY-MM-DD)",
-    "report_group_id": "Group identifier"
+    "report_group_id": "Group identifier",
+    "report_users": "Identifiers of users to be included in the report"
   },
   "validation": {
     "required": "This field is required",

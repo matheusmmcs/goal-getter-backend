@@ -18,6 +18,7 @@
     "reactivated": "Usuário reativado",
     "atribuicoes_found": "Atribuições encontradas",
     "perfis_found": "Perfis encontrados",
+    "daily_notes_found": "Anotações diárias encontradas",
     "name_required": "Nome é obrigatório",
     "username_required": "Nome de usuário é obrigatório",
     "username_taken": "Nome de usuário já está em uso",
@@ -154,7 +155,8 @@
   "openapi": {
     "report_start_date": "Data inicial (YYYY-MM-DD)",
     "report_end_date": "Data final (YYYY-MM-DD)",
-    "report_group_id": "Identificador do grupo"
+    "report_group_id": "Identificador do grupo",
+    "report_users": "Identificadores dos usuários a serem incluídos no relatório"
   },
   "validation": {
     "required": "Este campo é obrigatório",
