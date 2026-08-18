@@ -11,16 +11,34 @@ from app.models.enums import NivelCodigoEnum
 from app.models.grupo import GrupoTrabalho
 
 
-def format_group_data(grupo: GrupoTrabalho | None):
+def format_group_data(grupo: GrupoTrabalho | None, db: Session | None = None):
     if not grupo:
         return None
+
+    org_id = grupo.id_organizacao or (grupo.unidade.id_organizacao if grupo.unidade else None)
+    active_org_user_ids = set()
+    if db and org_id:
+        from app.models.usuario_organizacao import UsuarioOrganizacao
+        vinculos = (
+            db.query(UsuarioOrganizacao.id_usuario)
+            .filter(
+                UsuarioOrganizacao.id_organizacao == org_id,
+                UsuarioOrganizacao.inativo == False,
+            )
+            .all()
+        )
+        active_org_user_ids = {str(v[0]) for v in vinculos}
+
     atribuicoes = []
     usuarios_chefes = []
     for a in grupo.atribuicoes or []:
-        if a.inativo:
-            continue
         is_chefe = bool(a.nivel and a.nivel.valor == NivelCodigoEnum.GESTOR_GRUPO.value)
-        if is_chefe and a.usuario:
+        u_id = str(a.usuario.id) if a.usuario else str(a.id_usuario)
+        user_is_active = not (a.usuario.inativo if a.usuario else False)
+        is_in_org = (u_id in active_org_user_ids and user_is_active) if active_org_user_ids else user_is_active
+        is_in_grupo = not a.inativo
+
+        if is_chefe and a.usuario and is_in_grupo and is_in_org:
             usuarios_chefes.append({
                 "id": str(a.usuario.id),
                 "nome": a.usuario.nome,
@@ -34,6 +52,8 @@ def format_group_data(grupo: GrupoTrabalho | None):
             "id_nivel": str(a.id_nivel),
             "registrador": a.registrador,
             "inativo": a.inativo,
+            "is_in_grupo": is_in_grupo,
+            "is_in_organizacao": is_in_org,
             "isLeader": is_chefe,
             "isChefe": is_chefe,
             "papel": NivelCodigoEnum.GESTOR_GRUPO.name if is_chefe else NivelCodigoEnum.PARTICIPANTE.name,
@@ -49,6 +69,8 @@ def format_group_data(grupo: GrupoTrabalho | None):
                 "usuario": a.usuario.usuario,
                 "nickname": a.usuario.nickname,
                 "email": a.usuario.email,
+                "inativo": a.usuario.inativo if a.usuario else False,
+                "is_in_organizacao": is_in_org,
             } if a.usuario else None,
         })
 
@@ -97,7 +119,7 @@ def get_config(db: Session, config_id: UUID):
         "is_publico_para_grupo": config.is_publico_para_grupo,
         "canal_chatmessage": config.canal_chatmessage,
         "inativo": config.inativo,
-        "grupo": format_group_data(config.grupo),
+        "grupo": format_group_data(config.grupo, db),
     }
 
 
@@ -212,7 +234,7 @@ def get_config_by_group(db: Session, group_id: UUID, current_user):
         "is_publico_para_grupo": config.is_publico_para_grupo,
         "canal_chatmessage": config.canal_chatmessage,
         "hasRegistroHoje": has_registro_hoje,
-        "grupo": format_group_data(config.grupo),
+        "grupo": format_group_data(config.grupo, db),
         "canEditConfig": can_edit,
     }
 
