@@ -99,6 +99,24 @@
     "created": "Configuration created successfully",
     "updated": "Configuration updated successfully"
   },
+  "meta": {
+    "not_found": "Goal not found",
+    "listed": "Goals listed",
+    "found": "Goal found",
+    "created": "Goal created",
+    "updated": "Goal updated",
+    "deactivated": "Goal deactivated"
+  },
+  "delivery": {
+    "not_found": "Delivery not found",
+    "listed": "Deliveries listed",
+    "resumo_listed": "Unit deliveries listed",
+    "found": "Delivery found",
+    "created": "Delivery created",
+    "updated": "Delivery updated",
+    "deactivated": "Delivery deactivated"
+  },
+
   "daily_item": {
     "user_not_in_group": "User does not belong to this group",
     "already_exists": "A daily entry already exists for this day",

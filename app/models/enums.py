@@ -18,4 +18,26 @@ class NivelCodigoEnum(int, enum.Enum):
     GESTOR_GRUPO = 201
     PARTICIPANTE = 202
 
+class MetaStatusEnum(str, enum.Enum):
+    PLANEJADA = 'PLANEJADA'
+    EM_ANDAMENTO = 'EM_ANDAMENTO'
+    CONCLUIDA = 'CONCLUIDA'
+    CANCELADA = 'CANCELADA'
+
+class OrigemPlanejamentoEnum(str, enum.Enum):
+    INTERNA = 'INTERNA'
+    EXTERNA = 'EXTERNA'
+
+class OrigemEntregaEnum(str, enum.Enum):
+    INTERNA = 'INTERNA'
+    EXTERNA = 'EXTERNA'
+
+class EntregaStatusEnum(str, enum.Enum):
+    NAO_INICIADA = 'NAO_INICIADA'
+    EM_ANDAMENTO = 'EM_ANDAMENTO'
+    ENTREGUE = 'ENTREGUE'
+    ATRASADA = 'ATRASADA'
+    CANCELADA = 'CANCELADA'
+
+
 

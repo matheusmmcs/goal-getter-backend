@@ -99,6 +99,24 @@
     "created": "Configuração criada com sucesso",
     "updated": "Configuração atualizada com sucesso"
   },
+  "meta": {
+    "not_found": "Meta não encontrada",
+    "listed": "Metas listadas",
+    "found": "Meta encontrada",
+    "created": "Meta criada",
+    "updated": "Meta atualizada",
+    "deactivated": "Meta desativada"
+  },
+  "delivery": {
+    "not_found": "Entrega não encontrada",
+    "listed": "Entregas listadas",
+    "resumo_listed": "Entregas da unidade listadas",
+    "found": "Entrega encontrada",
+    "created": "Entrega criada",
+    "updated": "Entrega atualizada",
+    "deactivated": "Entrega desativada"
+  },
+
   "daily_item": {
     "user_not_in_group": "Usuário não pertence a este grupo",
     "already_exists": "Já existe um registro daily para este dia",

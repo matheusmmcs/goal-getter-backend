@@ -10,6 +10,7 @@ from app.models.enums import TipoDiarioItemAnotacaoEnum
 
 if TYPE_CHECKING:
     from app.models.diario_item import DiarioItem
+    from app.models.entrega import Entrega
 
 
 class DiarioItemAnotacao(Base):
@@ -20,6 +21,7 @@ class DiarioItemAnotacao(Base):
     tipo: Mapped[TipoDiarioItemAnotacaoEnum] = mapped_column(SAEnum(TipoDiarioItemAnotacaoEnum), nullable=False)
     descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     id_tarefa: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    id_entrega: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey('entregas.id'), nullable=True)
     petrvs_entrega_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     petrvs_entrega_desc: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     inativo: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -28,3 +30,5 @@ class DiarioItemAnotacao(Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     diario_item: Mapped["DiarioItem"] = relationship('DiarioItem', back_populates='notas')
+    entrega: Mapped[Optional["Entrega"]] = relationship('Entrega', back_populates='anotacoes_diario')
+

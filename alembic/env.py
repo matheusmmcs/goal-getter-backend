@@ -20,10 +20,14 @@ config = context.config
 
 # PER AGENTS-BACKEND.md: Do NOT call fileConfig() to avoid resetting FastAPI loggers
 
-# Set sqlalchemy.url from environment variable
-database_url = os.environ.get("DATABASE_URL")
+# Import settings for database URL
+from app.core.config import settings
+
+# Set sqlalchemy.url from environment variable or settings
+database_url = os.environ.get("DATABASE_URL") or settings.DATABASE_URL
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
+
 
 
 def run_migrations_offline() -> None:
