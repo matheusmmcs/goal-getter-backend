@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from app.models.usuario import Usuario
     from app.models.meta import Meta
     from app.models.diario_item_anotacao import DiarioItemAnotacao
+    from app.models.integracao_config import IntegracaoConfig
+    from app.models.integracao_endpoint import IntegracaoEndpoint
 
 
 class Entrega(Base):
@@ -33,7 +35,12 @@ class Entrega(Base):
     id_meta: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey('metas.id'), nullable=True)
     id_unidade: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey('unidades.id'), nullable=True)
     id_usuario_responsavel: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey('usuarios.id'), nullable=True)
-    id_integracao_config: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    id_integracao_config: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('integracoes_config.id'), nullable=True
+    )
+    id_integracao_endpoint: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('integracoes_endpoint.id'), nullable=True
+    )
     external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     titulo: Mapped[str] = mapped_column(String, nullable=False)
     descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -51,7 +58,8 @@ class Entrega(Base):
 
     organizacao: Mapped["Organizacao"] = relationship('Organizacao')
     meta: Mapped[Optional["Meta"]] = relationship('Meta', back_populates='entregas')
-
     unidade: Mapped[Optional["Unidade"]] = relationship('Unidade')
     usuario_responsavel: Mapped[Optional["Usuario"]] = relationship('Usuario')
+    integracao_config: Mapped[Optional["IntegracaoConfig"]] = relationship('IntegracaoConfig', back_populates='entregas')
+    integracao_endpoint: Mapped[Optional["IntegracaoEndpoint"]] = relationship('IntegracaoEndpoint', back_populates='entregas')
     anotacoes_diario: Mapped[List["DiarioItemAnotacao"]] = relationship('DiarioItemAnotacao', back_populates='entrega')

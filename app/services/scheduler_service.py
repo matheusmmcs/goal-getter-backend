@@ -9,6 +9,8 @@ from app.core.database import SessionLocal
 from app.core.timezone import now_in_app_timezone
 from app.models.agendamento import Agendamento
 from app.models.agendamento_historico import AgendamentoHistorico
+from app.models.integracao_config import IntegracaoConfig
+from app.models.enums import OrigemDisparoEnum
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +65,46 @@ async def execute_agendamento_job(agendamento_id: str):
         db.close()
 
 
-def load_and_schedule_jobs():
-    """Loads active agendamentos from DB and schedules them in APScheduler."""
+async def execute_integration_sync_job(integracao_id: str):
+    """Callback executed by the scheduler to run an integration sync automatically."""
+    from uuid import UUID
+    from app.services.integration_engine_service import run_integration_sync
+
     db: Session = SessionLocal()
     try:
+        cfg = db.query(IntegracaoConfig).filter(
+            IntegracaoConfig.id == UUID(integracao_id),
+            IntegracaoConfig.ativo == True,
+            IntegracaoConfig.ativo_sincronizacao == True,
+            IntegracaoConfig.inativo == False
+        ).first()
+
+        if not cfg:
+            logger.warning(f"Integração {integracao_id} inativa ou não encontrada para agendamento. Ignorando.")
+            return
+
+        logger.info(f"Iniciando sincronização agendada da integração {cfg.nome} ({cfg.id})...")
+        historicos = await run_integration_sync(
+            db=db,
+            integracao_id=cfg.id,
+            disparo=OrigemDisparoEnum.CRON_AGENDAMENTO,
+            id_usuario_executor=None
+        )
+        total_criados = sum(h.total_criados for h in historicos)
+        total_atualizados = sum(h.total_atualizados for h in historicos)
+        logger.info(f"Sincronização agendada da integração {cfg.nome} concluída. Endpoints: {len(historicos)}, Criados: {total_criados}, Atualizados: {total_atualizados}")
+
+    except Exception as e:
+        logger.error(f"Erro ao executar job de sincronização de integração {integracao_id}: {e}", exc_info=True)
+    finally:
+        db.close()
+
+
+def load_and_schedule_jobs():
+    """Loads active agendamentos and integration cron jobs from DB and schedules them in APScheduler."""
+    db: Session = SessionLocal()
+    try:
+        # 1. Agendamentos de Notificação
         agendamentos = db.query(Agendamento).filter(
             Agendamento.ativo == True,
             Agendamento.inativo == False
@@ -80,12 +118,35 @@ def load_and_schedule_jobs():
                         execute_agendamento_job,
                         trigger=trigger,
                         args=[str(ag.id)],
-                        id=str(ag.id),
+                        id=f"agendamento_{ag.id}",
                         replace_existing=True
                     )
                     logger.info(f"Agendamento {ag.id} agendado via Cron ({ag.expressao_cron}).")
                 except Exception as ex:
                     logger.error(f"Falha ao criar CronTrigger para {ag.id} ({ag.expressao_cron}): {ex}")
+
+        # 2. Agendamentos de Integração Lego
+        integracoes = db.query(IntegracaoConfig).filter(
+            IntegracaoConfig.ativo == True,
+            IntegracaoConfig.ativo_sincronizacao == True,
+            IntegracaoConfig.inativo == False
+        ).all()
+
+        for it in integracoes:
+            if it.frequencia_cron:
+                try:
+                    trigger = CronTrigger.from_crontab(it.frequencia_cron)
+                    scheduler.add_job(
+                        execute_integration_sync_job,
+                        trigger=trigger,
+                        args=[str(it.id)],
+                        id=f"integracao_{it.id}",
+                        replace_existing=True
+                    )
+                    logger.info(f"Integração {it.nome} ({it.id}) agendada via Cron ({it.frequencia_cron}).")
+                except Exception as ex:
+                    logger.error(f"Falha ao criar CronTrigger para integração {it.id} ({it.frequencia_cron}): {ex}")
+
     except Exception as e:
         logger.error(f"Erro ao carregar agendamentos do banco de dados: {e}")
     finally:
@@ -105,3 +166,4 @@ def shutdown_scheduler():
     if scheduler.running:
         scheduler.shutdown()
         logger.info("APScheduler encerrado com sucesso.")
+

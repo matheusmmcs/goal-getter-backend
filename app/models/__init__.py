@@ -7,6 +7,15 @@ from app.models.enums import (
     OrigemPlanejamentoEnum,
     OrigemEntregaEnum,
     EntregaStatusEnum,
+    TipoIntegracaoEnum,
+    ProvedorIntegracaoEnum,
+    MetodoHttpEnum,
+    TipoAutenticacaoEnum,
+    ModoExecucaoEnum,
+    ParametroLocalizacaoEnum,
+    ParametroTipoOrigemEnum,
+    StatusExecucaoEnum,
+    OrigemDisparoEnum,
 )
 from app.models.usuario import Usuario
 from app.models.organizacao import Organizacao
@@ -23,5 +32,7 @@ from app.models.meta import Meta
 from app.models.entrega import Entrega
 from app.models.agendamento import Agendamento
 from app.models.agendamento_historico import AgendamentoHistorico
-
-
+from app.models.integracao_config import IntegracaoConfig
+from app.models.integracao_endpoint import IntegracaoEndpoint
+from app.models.integracao_mapeamento import IntegracaoMapeamento
+from app.models.integracao_execucao_historico import IntegracaoExecucaoHistorico

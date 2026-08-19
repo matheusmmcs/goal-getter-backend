@@ -40,4 +40,74 @@ class EntregaStatusEnum(str, enum.Enum):
     CANCELADA = 'CANCELADA'
 
 
+class TipoIntegracaoEnum(str, enum.Enum):
+    RECEBER_METAS = 'RECEBER_METAS'
+    RECEBER_ENTREGAS = 'RECEBER_ENTREGAS'
+    RECEBER_TAREFAS = 'RECEBER_TAREFAS'
+
+
+class ModoExecucaoEnum(str, enum.Enum):
+    MANUAL_PAINEL = 'MANUAL_PAINEL'
+    AGENDADO_CRON = 'AGENDADO_CRON'
+    GLOBAL_UNICO = 'GLOBAL_UNICO'
+    POR_UNIDADE = 'POR_UNIDADE'
+    POR_USUARIO = 'POR_USUARIO'
+
+
+class EscopoIteracaoEnum(str, enum.Enum):
+    TODAS = 'TODAS'
+    SELECIONADAS = 'SELECIONADAS'
+    TODOS = 'TODOS'
+
+
+class ProvedorIntegracaoEnum(str, enum.Enum):
+    CUSTOM_REST = 'CUSTOM_REST'
+    PETRVS = 'PETRVS'
+    REDMINE = 'REDMINE'
+    JIRA = 'JIRA'
+    GLPI = 'GLPI'
+
+
+class MetodoHttpEnum(str, enum.Enum):
+    GET = 'GET'
+    POST = 'POST'
+
+
+class TipoAutenticacaoEnum(str, enum.Enum):
+    NONE = 'NONE'
+    BEARER_TOKEN = 'BEARER_TOKEN'
+    API_KEY_HEADER = 'API_KEY_HEADER'
+    BASIC_AUTH = 'BASIC_AUTH'
+    CUSTOM_HEADER = 'CUSTOM_HEADER'
+    DYNAMIC_LOGIN = 'DYNAMIC_LOGIN'
+
+
+class ParametroLocalizacaoEnum(str, enum.Enum):
+    QUERY = 'QUERY'
+    PATH = 'PATH'
+    HEADER = 'HEADER'
+    BODY = 'BODY'
+
+
+class ParametroTipoOrigemEnum(str, enum.Enum):
+    FIXO = 'FIXO'
+    VARIAVEL_SISTEMA = 'VARIAVEL_SISTEMA'
+    DINAMICO_UNIDADE = 'DINAMICO_UNIDADE'
+    DINAMICO_USUARIO = 'DINAMICO_USUARIO'
+
+
+class StatusExecucaoEnum(str, enum.Enum):
+    EM_ANDAMENTO = 'EM_ANDAMENTO'
+    SUCESSO = 'SUCESSO'
+    PARCIAL = 'PARCIAL'
+    FALHA = 'FALHA'
+
+
+class OrigemDisparoEnum(str, enum.Enum):
+    MANUAL = 'MANUAL'
+    CRON_AGENDAMENTO = 'CRON_AGENDAMENTO'
+
+
+
+
 

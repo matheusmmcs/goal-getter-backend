@@ -82,7 +82,7 @@ async def i18n_middleware(request: Request, call_next):
         reset_current_locale(token)
 
 # Import and register all routers
-from app.routers import auth, usuarios, unidades, niveis, grupos, daily_configs, daily_items, agendamentos, petrvs, organizacoes, system, metas, entregas
+from app.routers import auth, usuarios, unidades, niveis, grupos, daily_configs, daily_items, agendamentos, petrvs, organizacoes, system, metas, entregas, integracoes
 
 app.include_router(auth.router, prefix='/api/auth', tags=['Auth'])
 app.include_router(system.router, prefix='/api', tags=['System'])
@@ -93,9 +93,11 @@ app.include_router(niveis.router, prefix='/api/niveis', tags=['Niveis'])
 app.include_router(grupos.router, prefix='/api/grupos', tags=['Grupos'])
 app.include_router(metas.router, prefix='/api/metas', tags=['Metas'])
 app.include_router(entregas.router, prefix='/api/entregas', tags=['Entregas'])
+app.include_router(integracoes.router, prefix='/api/integracoes', tags=['Integrações'])
 app.include_router(daily_configs.router, prefix='/api/daily/configs', tags=['Daily Configs'])
 app.include_router(daily_items.router, prefix='/api/daily/configs', tags=['Daily Items'])
 app.include_router(agendamentos.router, prefix='/api/daily/agendamentos', tags=['Agendamentos'])
 app.include_router(petrvs.router, prefix='/api/petrvs', tags=['Petrvs'])
+
 
 

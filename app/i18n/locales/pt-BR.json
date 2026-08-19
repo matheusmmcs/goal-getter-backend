@@ -146,6 +146,29 @@
     "updated": "Agendamento atualizado",
     "deactivated": "Agendamento desativado"
   },
+  "integration": {
+    "not_found": "Integração não encontrada",
+    "endpoint_not_found": "Endpoint de integração não encontrado",
+    "endpoints_listed": "Endpoints de integração listados",
+    "endpoint_found": "Endpoint de integração encontrado",
+    "endpoint_created": "Endpoint de integração criado com sucesso",
+    "endpoint_updated": "Endpoint de integração atualizado com sucesso",
+    "endpoint_deleted": "Endpoint de integração excluído com sucesso",
+    "no_active_endpoints": "Não há endpoints ativos configurados para sincronização",
+    "mapping_required": "O mapeamento dos campos da integração é obrigatório antes da sincronização",
+    "listed": "Integrações listadas",
+    "found": "Integração encontrada",
+    "created": "Integração criada com sucesso",
+    "updated": "Integração atualizada com sucesso",
+    "deleted": "Integração excluída com sucesso",
+    "history_listed": "Histórico de execuções listado",
+    "connection_tested": "Teste de conexão concluído",
+    "schema_inspected": "Inspeção de schema concluída",
+    "mapping_previewed": "Pré-visualização do mapeamento gerada",
+    "mapping_not_configured": "O mapeamento dos campos da integração não foi configurado",
+    "preview_generated": "Pré-visualização da sincronização gerada com sucesso",
+    "sync_completed": "Sincronização executada com sucesso"
+  },
   "petrvs": {
     "disabled": "Integração com o Petrvs está desativada",
     "fetch_error": "Erro ao buscar dados do Petrvs",
@@ -177,3 +200,4 @@
     "internal_error": "Ocorreu um erro interno no servidor. Tente novamente mais tarde."
   }
 }
+
