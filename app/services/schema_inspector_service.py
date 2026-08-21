@@ -209,6 +209,16 @@ async def prepare_request_headers_and_auth(
         if header_name and header_value:
             headers[header_name] = header_value
 
+    elif tipo_autenticacao == TipoAutenticacaoEnum.API_KEY_QUERY and auth_static_config:
+        token = (
+            auth_static_config.get("api_key")
+            or auth_static_config.get("param_value")
+            or auth_static_config.get("key")
+            or auth_static_config.get("token")
+        )
+        if token:
+            extracted_token = str(token)
+
     elif tipo_autenticacao == TipoAutenticacaoEnum.BASIC_AUTH and auth_static_config:
         username = auth_static_config.get("username", "")
         password = auth_static_config.get("password", "")
@@ -267,6 +277,23 @@ async def execute_integrated_request(
     # 3. Process parameters
     query_params: dict[str, Any] = {}
     body_data = None
+
+    if tipo_autenticacao == TipoAutenticacaoEnum.API_KEY_QUERY and auth_static_config:
+        param_name = (
+            auth_static_config.get("param_name")
+            or auth_static_config.get("query_param_name")
+            or auth_static_config.get("header_name")
+            or "key"
+        )
+        param_value = (
+            auth_static_config.get("api_key")
+            or auth_static_config.get("param_value")
+            or auth_static_config.get("key")
+            or auth_static_config.get("token")
+            or ""
+        )
+        if param_name and param_value:
+            query_params[param_name] = param_value
 
     if parametros_config:
         for p in parametros_config:

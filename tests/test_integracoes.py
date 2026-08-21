@@ -497,3 +497,47 @@ def test_api_routes_with_test_client(db, setup_org_and_user):
 
     # Clean overrides
     app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_integracao_redmine_api_key_query(db, setup_org_and_user):
+    """Tests Redmine-style API key via query param in connection test & request execution."""
+    org = setup_org_and_user["org"]
+
+    # 1. Test execute_integrated_request query parameter injection
+    req_url = "https://redmine.ufpi.br"
+    tipo_auth = TipoAutenticacaoEnum.API_KEY_QUERY
+    auth_config = {"param_name": "key", "api_key": "redmine_secret_key_123"}
+    params_custom = [
+        ParametroConfigSchema(
+            nome="project_id",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.FIXO,
+            valor_template="sistemas_ufpi",
+        )
+    ]
+
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.json = lambda: {"issues": [{"id": 1, "subject": "Tarefa Redmine"}]}
+        mock_get.return_value = mock_response
+
+        status_code, latency, data, resp_headers, token = await schema_inspector_service.execute_integrated_request(
+            url_base=req_url,
+            path="issues.json",
+            metodo_http=MetodoHttpEnum.GET,
+            tipo_autenticacao=tipo_auth,
+            auth_static_config=auth_config,
+            parametros_config=params_custom,
+        )
+
+        assert status_code == 200
+        assert token == "redmine_secret_key_123"
+        assert "issues" in data
+        mock_get.assert_called_once()
+        call_kwargs = mock_get.call_args.kwargs
+        assert call_kwargs["params"]["key"] == "redmine_secret_key_123"
+        assert call_kwargs["params"]["project_id"] == "sistemas_ufpi"
+
