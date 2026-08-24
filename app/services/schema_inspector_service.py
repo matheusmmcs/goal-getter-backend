@@ -329,7 +329,7 @@ async def execute_integrated_request(
             elif loc == ParametroLocalizacaoEnum.HEADER:
                 headers[p.nome] = val
             elif loc == ParametroLocalizacaoEnum.PATH:
-                full_url = full_url.replace(f"{{{p.nome}}}", urllib.parse.quote(str(val)))
+                full_url = full_url.replace(f"{{{p.nome}}}", urllib.parse.quote(val))
 
     if corpo_requisicao and metodo_http == MetodoHttpEnum.POST:
         resolved_body = resolve_template_string(corpo_requisicao, ctx)
@@ -747,7 +747,7 @@ def build_composite_key(item: dict[str, Any], template: str | None, paths: list[
     """Builds composite external_id from multiple paths and template."""
     if not paths:
         return str(item.get("id", ""))
-    extracted_values = [str(extract_field_value(item, p) or "") for p in paths]
+    extracted_values = [str(extract_field_value(item, p) or "") for p in (paths or [])]
     if template:
         res = template
         for i, val in enumerate(extracted_values):
@@ -757,6 +757,9 @@ def build_composite_key(item: dict[str, Any], template: str | None, paths: list[
             res = res.replace(f"{{{clean_p}}}", val)
             res = res.replace(f"{{{p}}}", val)
         return res
+    return "-".join(extracted_values)
+
+
 def resolve_item_url_template(template_or_field: str | None, item: dict[str, Any]) -> str | None:
     """
     Resolves external link either from a single field path (e.g. 'html_url', 'url')
@@ -765,7 +768,7 @@ def resolve_item_url_template(template_or_field: str | None, item: dict[str, Any
     """
     if not template_or_field or not isinstance(item, dict):
         return None
-    cleaned = str(template_or_field).strip()
+    cleaned = template_or_field.strip()
     if not cleaned:
         return None
 
@@ -805,7 +808,7 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
 
     # Fallback to legacy fields
     if not status_map_dict and map_cfg.map_status_values:
-        status_map_dict = map_cfg.map_status_values
+        status_map_dict = dict(map_cfg.map_status_values or {})
     if not unit_map_dict and map_cfg.map_unidades_values:
         for u in map_cfg.map_unidades_values:
             unit_map_dict[str(u.codigo_externo).strip().upper()] = u.nome_externo or str(u.id_unidade)
@@ -875,8 +878,9 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
         link_externo = resolve_item_url_template(getattr(map_cfg, "campo_link_externo", None), item)
 
         extras_dict: dict[str, Any] = {}
-        if getattr(map_cfg, "campos_extras", None):
-            for extra_item in map_cfg.campos_extras:
+        campos_extras = getattr(map_cfg, "campos_extras", None) or map_cfg.campos_extras
+        if campos_extras:
+            for extra_item in (campos_extras or []):
                 if isinstance(extra_item, dict) and "chave" in extra_item and "caminho" in extra_item:
                     val = extract_field_value(item, extra_item["caminho"])
                     if val is not None:

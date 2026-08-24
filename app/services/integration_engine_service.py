@@ -64,8 +64,8 @@ def map_status_to_entrega_enum(raw_status: str | None, map_dict: dict[str, str] 
     """Maps external status string to EntregaStatusEnum."""
     if not raw_status:
         return EntregaStatusEnum.NAO_INICIADA
-    clean = str(raw_status).strip()
-    if map_dict and clean in map_dict:
+    clean = raw_status.strip()
+    if map_dict and isinstance(map_dict, dict) and clean in map_dict:
         target = map_dict[clean]
         try:
             return EntregaStatusEnum(target)
@@ -91,8 +91,8 @@ def map_status_to_meta_enum(raw_status: str | None, map_dict: dict[str, str] | N
     """Maps external status string to MetaStatusEnum."""
     if not raw_status:
         return MetaStatusEnum.PLANEJADA
-    clean = str(raw_status).strip()
-    if map_dict and clean in map_dict:
+    clean = raw_status.strip()
+    if map_dict and isinstance(map_dict, dict) and clean in map_dict:
         target = map_dict[clean]
         try:
             return MetaStatusEnum(target)
@@ -210,7 +210,7 @@ async def run_endpoint_sync(
                         user_depara[ident] = UUID(raw_usrid)
 
         if not status_map and mapeamento.map_status_values:
-            status_map = mapeamento.map_status_values
+            status_map = dict(mapeamento.map_status_values or {})
 
         # Pre-fetch organization users for fallback match (by CPF, email, login)
         org_users = db.query(Usuario).join(
@@ -773,7 +773,7 @@ async def preview_endpoint_sync(
                     user_depara[ident] = UUID(raw_usrid)
 
     if not status_map and mapeamento.map_status_values:
-        status_map = mapeamento.map_status_values
+        status_map = dict(mapeamento.map_status_values or {})
 
     org_users = db.query(Usuario).join(
         UsuarioOrganizacao, UsuarioOrganizacao.id_usuario == Usuario.id
@@ -1010,6 +1010,9 @@ async def preview_endpoint_sync(
         campos_alterados: list[str] = []
         valores_anteriores: dict[str, Any] = {}
 
+        meta_status: MetaStatusEnum | None = None
+        entrega_status: EntregaStatusEnum | None = None
+
         if endpoint.tipo_integracao.value == "RECEBER_METAS":
             meta_status = map_status_to_meta_enum(raw_status, mapeamento.map_status_values)
             existing = db.query(Meta).filter(
@@ -1036,10 +1039,10 @@ async def preview_endpoint_sync(
                     valores_anteriores["unidade"] = existing.unidade.nome if existing.unidade else str(existing.id_unidade)
                 if dt_ini and existing.data_inicio != dt_ini:
                     campos_alterados.append("data_inicio")
-                    valores_anteriores["data_inicio"] = existing.data_inicio.isoformat()
+                    valores_anteriores["data_inicio"] = existing.data_inicio.isoformat() if existing.data_inicio else None
                 if dt_fim and existing.data_fim != dt_fim:
                     campos_alterados.append("data_fim")
-                    valores_anteriores["data_fim"] = existing.data_fim.isoformat()
+                    valores_anteriores["data_fim"] = existing.data_fim.isoformat() if existing.data_fim else None
                 if codigo and existing.codigo != codigo:
                     campos_alterados.append("codigo")
                     valores_anteriores["codigo"] = existing.codigo
@@ -1082,10 +1085,10 @@ async def preview_endpoint_sync(
                     valores_anteriores["unidade"] = existing.unidade.nome if existing.unidade else str(existing.id_unidade)
                 if dt_ini and existing.data_inicio != dt_ini:
                     campos_alterados.append("data_inicio")
-                    valores_anteriores["data_inicio"] = existing.data_inicio.isoformat()
+                    valores_anteriores["data_inicio"] = existing.data_inicio.isoformat() if existing.data_inicio else None
                 if dt_fim and existing.data_fim != dt_fim:
                     campos_alterados.append("data_fim")
-                    valores_anteriores["data_fim"] = existing.data_fim.isoformat()
+                    valores_anteriores["data_fim"] = existing.data_fim.isoformat() if existing.data_fim else None
                 if codigo and existing.codigo != codigo:
                     campos_alterados.append("codigo")
                     valores_anteriores["codigo"] = existing.codigo
@@ -1100,6 +1103,15 @@ async def preview_endpoint_sync(
                 acao = "CRIAR"
                 total_novos += 1
 
+        status_item = raw_status
+        if not status_item:
+            if endpoint.tipo_integracao.value == "RECEBER_METAS":
+                status_item = meta_status.value if meta_status else "NAO_INICIADA"
+            elif endpoint.tipo_integracao.value == "RECEBER_TAREFAS":
+                status_item = "ABERTA"
+            else:
+                status_item = entrega_status.value if entrega_status else "NAO_INICIADA"
+
         if ext_id in preview_items_dict:
             preview_items_dict[ext_id].quantidade_registros += 1
         else:
@@ -1112,7 +1124,7 @@ async def preview_endpoint_sync(
                 titulo=titulo,
                 tipo_integracao=endpoint.tipo_integracao,
                 acao=acao,
-                status=raw_status or (entrega_status.value if endpoint.tipo_integracao.value not in ("RECEBER_METAS", "RECEBER_TAREFAS") else (meta_status.value if endpoint.tipo_integracao.value == "RECEBER_METAS" else "ABERTA")),
+                status=status_item,
                 data_inicio=dt_ini.isoformat() if dt_ini else None,
                 data_fim=dt_fim.isoformat() if dt_fim else None,
                 data_criacao=dt_ini.isoformat() if dt_ini else None,
@@ -1423,7 +1435,7 @@ async def fetch_live_user_tasks(
                 descricao_str = str(descricao) if descricao is not None else None
 
                 raw_status = str(extract_field_value(raw_item, mapeamento.campo_status) or "")
-                map_status = mapeamento.map_status_values or {}
+                map_status = dict(mapeamento.map_status_values or {})
                 mapped_status = map_status.get(raw_status, raw_status) if raw_status else None
 
                 progresso = parse_percent_safe(extract_field_value(raw_item, mapeamento.campo_progresso))
@@ -1450,8 +1462,9 @@ async def fetch_live_user_tasks(
                             url_externa = f"{base_url}/browse/{task_id}"
 
                 extras_dict = {}
-                if getattr(mapeamento, "campos_extras", None):
-                    for extra_item in mapeamento.campos_extras:
+                campos_extras = getattr(mapeamento, "campos_extras", None) or mapeamento.campos_extras
+                if campos_extras:
+                    for extra_item in (campos_extras or []):
                         if isinstance(extra_item, dict) and "chave" in extra_item and "caminho" in extra_item:
                             val = extract_field_value(raw_item, extra_item["caminho"])
                             if val is not None:

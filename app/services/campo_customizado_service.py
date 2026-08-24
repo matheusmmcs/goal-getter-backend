@@ -131,7 +131,7 @@ def get_usuario_campos_customizados(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="organization.user_link_not_found",
         )
-    return vinculo.campos_customizados or {}
+    return dict(vinculo.campos_customizados or {})
 
 
 def update_usuario_campos_customizados(
@@ -155,7 +155,7 @@ def update_usuario_campos_customizados(
     vinculo.campos_customizados = current
     vinculo.updated_at = now_in_app_timezone()
     db.commit()
-    return vinculo.campos_customizados
+    return current
 
 
 def get_unidade_campos_customizados(
@@ -173,7 +173,7 @@ def get_unidade_campos_customizados(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="unit.not_found",
         )
-    return unidade.campos_customizados or {}
+    return dict(unidade.campos_customizados or {})
 
 
 def update_unidade_campos_customizados(
@@ -197,4 +197,4 @@ def update_unidade_campos_customizados(
     unidade.campos_customizados = current
     unidade.updated_at = now_in_app_timezone()
     db.commit()
-    return unidade.campos_customizados
+    return current

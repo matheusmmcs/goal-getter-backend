@@ -444,10 +444,10 @@ class SyncNowRequest(BaseModel):
 class TransformedItemPreview(BaseModel):
     tipo_integracao: TipoIntegracaoEnum = TipoIntegracaoEnum.RECEBER_ENTREGAS
     external_id: str
-    quantidade_registros: int = Field(1, description="Quantidade de registros externos encontrados com este mesmo ID")
-    ja_existe: bool = Field(False, description="Indica se o registro já existe na base de dados")
+    quantidade_registros: int = Field(default=1, description="Quantidade de registros externos encontrados com este mesmo ID")
+    ja_existe: bool = Field(default=False, description="Indica se o registro já existe na base de dados")
     campos_alterados: list[str] = Field(default_factory=list, description="Campos diferentes em relação ao registro existente no banco")
-    valores_anteriores: dict[str, Any] | None = Field(None, description="Valores atuais persistidos no banco de dados antes da sincronização")
+    valores_anteriores: dict[str, Any] | None = Field(default=None, description="Valores atuais persistidos no banco de dados antes da sincronização")
     titulo: str
     descricao: str | None = None
     codigo: str | None = None

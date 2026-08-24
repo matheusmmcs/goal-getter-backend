@@ -263,7 +263,7 @@ def create_config(db: Session, group_id: UUID, data):
     db.add(new_config)
     db.commit()
     db.refresh(new_config)
-    return get_config(db, new_config.id)
+    return get_config(db, UUID(str(new_config.id)))
 
 
 def update_config(db: Session, config_id: UUID, data):
@@ -279,4 +279,4 @@ def update_config(db: Session, config_id: UUID, data):
     config.updated_at = now_in_app_timezone()
     db.commit()
     db.refresh(config)
-    return get_config(db, config.id)
+    return get_config(db, UUID(str(config.id)))
