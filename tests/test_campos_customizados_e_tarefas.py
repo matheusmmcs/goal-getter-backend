@@ -254,7 +254,7 @@ async def test_live_tasks_endpoint_with_custom_fields_injection():
     }
 
     with patch("app.services.integration_engine_service.execute_integrated_request", new_callable=AsyncMock) as mock_req:
-        mock_req.return_value = (200, {}, mock_redmine_response, None, 120.0)
+        mock_req.return_value = (200, 120.0, mock_redmine_response, {}, None, "https://redmine.ufpi.br/issues.json")
 
         res = client.get("/api/integracoes/tarefas-live", headers=headers)
         assert res.status_code == 200, res.text

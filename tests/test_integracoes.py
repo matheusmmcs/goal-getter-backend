@@ -1,5 +1,5 @@
 import pytest
-from datetime import date
+from datetime import date, datetime
 from uuid import uuid4
 from unittest.mock import patch, AsyncMock
 from sqlalchemy import create_engine
@@ -465,9 +465,9 @@ async def test_integration_engine_sync_metas_and_entregas(db, setup_org_and_user
     async def mock_execute(*args, **kwargs):
         path = kwargs.get("path") or ""
         if "metas" in path:
-            return 200, 10.0, metas_payload, {}, None
+            return 200, 10.0, metas_payload, {}, None, "https://petrvs.ufpi.br/api/metas"
         else:
-            return 200, 10.0, entregas_payload, {}, None
+            return 200, 10.0, entregas_payload, {}, None, "https://petrvs.ufpi.br/api/entregas"
 
     with patch("app.services.integration_engine_service.execute_integrated_request", side_effect=mock_execute):
         # 1. Sync Metas Endpoint
@@ -617,7 +617,7 @@ def test_api_routes_with_test_client(db, setup_org_and_user):
             }
         ]
     }
-    with patch("app.services.integration_engine_service.execute_integrated_request", return_value=(200, 15.0, tasks_api_payload, {}, None)):
+    with patch("app.services.integration_engine_service.execute_integrated_request", return_value=(200, 15.0, tasks_api_payload, {}, None, "https://api.exemplo.com/tarefas")):
         resp_preview = client.post(
             f"/api/integracoes/{created_id}/endpoints/{ep_tasks_id}/preview-sync",
             json={},
@@ -663,7 +663,7 @@ async def test_integracao_redmine_api_key_query(db, setup_org_and_user):
         mock_response.json = lambda: {"issues": [{"id": 1, "subject": "Tarefa Redmine"}]}
         mock_get.return_value = mock_response
 
-        status_code, latency, data, resp_headers, token = await schema_inspector_service.execute_integrated_request(
+        status_code, latency, data, resp_headers, token, executed_url = await schema_inspector_service.execute_integrated_request(
             url_base=req_url,
             path="issues.json",
             metodo_http=MetodoHttpEnum.GET,
@@ -723,7 +723,7 @@ async def test_integration_selective_sync_entregas(db, setup_org_and_user):
         ]
     }
 
-    with patch("app.services.integration_engine_service.execute_integrated_request", return_value=(200, 10.0, api_payload, {}, None)):
+    with patch("app.services.integration_engine_service.execute_integrated_request", return_value=(200, 10.0, api_payload, {}, None, "https://api.exemplo.com/entregas")):
         # 1. Sync only ENT-1 and ENT-3 (selective manual sync)
         hist = await integration_engine_service.run_endpoint_sync(
             db=db,
@@ -785,13 +785,15 @@ async def test_inspect_schema_with_iteration_contexts():
     async def mock_execute(**kwargs):
         ctx = kwargs.get("context") or {}
         cpf = ctx.get("usuario_cpf", "")
-        requested_urls.append(f"https://api.petrvs.ufpi.br/entregas?cpf={cpf}")
+        req_url = f"https://api.petrvs.ufpi.br/entregas?cpf={cpf}"
+        requested_urls.append(req_url)
         return (
             200,
             12.0,
             {"entregas": [{"id": f"ENT-{cpf}", "titulo": f"Entrega do CPF {cpf}", "status": "OK"}]},
             {},
             None,
+            req_url,
         )
 
     with patch("app.services.schema_inspector_service.execute_integrated_request", side_effect=mock_execute):
@@ -856,6 +858,7 @@ async def test_preview_integration_sync_dry_run_new_items(db, setup_org_and_user
             {"entregas": [{"id": "NEW-ENT-99", "titulo": "Nova Entrega Simulação", "status": "HOMOLOGADO"}]},
             {},
             None,
+            "https://api.petrvs.ufpi.br/transparencia-api/entregas?cpf=123",
         )
 
     with patch("app.services.integration_engine_service.execute_integrated_request", side_effect=mock_execute):
@@ -921,7 +924,7 @@ async def test_preview_sync_deduplicates_external_ids(db, setup_org_and_user):
         ]
     }
 
-    with patch("app.services.integration_engine_service.execute_integrated_request", return_value=(200, 10.0, api_payload, {}, None)):
+    with patch("app.services.integration_engine_service.execute_integrated_request", return_value=(200, 10.0, api_payload, {}, None, "https://api.petrvs.ufpi.br/entregas")):
         res = await integration_engine_service.preview_endpoint_sync(
             db=db,
             endpoint_id=ep.id,
@@ -1046,7 +1049,7 @@ async def test_preview_sync_detects_existing_record_and_altered_fields(db, setup
         ]
     }
 
-    with patch("app.services.integration_engine_service.execute_integrated_request", return_value=(200, 10.0, api_payload, {}, None)):
+    with patch("app.services.integration_engine_service.execute_integrated_request", return_value=(200, 10.0, api_payload, {}, None, "https://api.petrvs.ufpi.br/entregas")):
         res = await integration_engine_service.preview_endpoint_sync(
             db=db,
             endpoint_id=ep.id,
@@ -1068,7 +1071,345 @@ async def test_preview_sync_detects_existing_record_and_altered_fields(db, setup
         assert item.valores_anteriores["progresso_percentual"] == 50
 
 
+def test_resolve_template_string_advanced_dates_and_aliases():
+    """Tests resolution of date formats, arithmetic, user/unit aliases and auth tags."""
+    ctx = {
+        "API_KEY": "secret_key_abc",
+        "id_usuario": "usr-123",
+        "usuario_login": "joao.silva",
+        "usuario_cpf": "12345678900",
+        "usuario_email": "joao@ufpi.br",
+        "codigo_unidade": "NTI",
+        "data_referencia": "2026-08-23",
+        "usuario_redmine_id": "42",
+        "unidade_dept_code": "STI-01",
+    }
 
+    # 1. User & Unit dot aliases
+    assert schema_inspector_service.resolve_template_string("/users/{user.id}", ctx) == "/users/usr-123"
+    assert schema_inspector_service.resolve_template_string("/users/{usuario.login}", ctx) == "/users/joao.silva"
+    assert schema_inspector_service.resolve_template_string("/users/{user.cpf}", ctx) == "/users/12345678900"
+    assert schema_inspector_service.resolve_template_string("/units/{unit.code}", ctx) == "/units/NTI"
+    assert schema_inspector_service.resolve_template_string("/custom/{user.redmine_id}", ctx) == "/custom/42"
+    assert schema_inspector_service.resolve_template_string("/custom/{unit.dept_code}", ctx) == "/custom/STI-01"
+
+    # 2. Auth tokens
+    assert schema_inspector_service.resolve_template_string("/api?key={API_KEY}", ctx) == "/api?key=secret_key_abc"
+
+    # 3. Direct date formats (evaluated with data_referencia = 2026-08-23)
+    assert schema_inspector_service.resolve_template_string("date={YYYY-MM-DD}", ctx) == "date=2026-08-23"
+    assert schema_inspector_service.resolve_template_string("date={DD/MM/YYYY}", ctx) == "date=23/08/2026"
+    assert schema_inspector_service.resolve_template_string("date={YYYYMMDD}", ctx) == "date=20260823"
+    assert schema_inspector_service.resolve_template_string("date={YYYY-MM-DDTHH:mm:ssZ}", ctx) == "date=2026-08-23T00:00:00Z"
+
+    # 4. Parameterized date formats
+    assert schema_inspector_service.resolve_template_string("d={data_referencia:DD/MM/YYYY}", ctx) == "d=23/08/2026"
+    assert schema_inspector_service.resolve_template_string("d={data_hoje:YYYY-MM-DD}", ctx) == f"d={datetime.now().strftime('%Y-%m-%d')}"
+
+    # 5. Date arithmetic
+    assert schema_inspector_service.resolve_template_string("d={data_referencia-1d:YYYY-MM-DD}", ctx) == "d=2026-08-22"
+    assert schema_inspector_service.resolve_template_string("d={data_referencia-7d:YYYY-MM-DD}", ctx) == "d=2026-08-16"
+    assert schema_inspector_service.resolve_template_string("d={inicio_mes:YYYY-MM-DD}", ctx) == "d=2026-08-01"
+    assert schema_inspector_service.resolve_template_string("d={fim_mes:YYYY-MM-DD}", ctx) == "d=2026-08-31"
+
+    # 6. Complex Redmine query string examples from prompt
+    redmine_assigned = "/issues.json?key={API_KEY}&assigned_to_id={user.redmine_id}&updated_on=>={YYYY-MM-DD}&sort=id:asc"
+    resolved_assigned = schema_inspector_service.resolve_template_string(redmine_assigned, ctx)
+    assert resolved_assigned == "/issues.json?key=secret_key_abc&assigned_to_id=42&updated_on=>=2026-08-23&sort=id:asc"
+
+    redmine_author = "/issues.json?key={API_KEY}&author_id={user.redmine_id}&created_on=>={YYYY-MM-DD}&sort=id:asc"
+    resolved_author = schema_inspector_service.resolve_template_string(redmine_author, ctx)
+    assert resolved_author == "/issues.json?key=secret_key_abc&author_id=42&created_on=>=2026-08-23&sort=id:asc"
+
+
+@pytest.mark.asyncio
+async def test_execute_integrated_request_with_redmine_query_and_date_parameters():
+    """Tests execute_integrated_request resolving path tags and parameters with filter operators."""
+    auth_cfg = {"api_key": "redmine_key_999"}
+    user_context = {
+        "id_usuario": "1001",
+        "data_referencia": "2026-08-23",
+    }
+    params_custom = [
+        ParametroConfigSchema(
+            nome="updated_on",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.VARIAVEL_SISTEMA,
+            valor_template=">={YYYY-MM-DD}",
+        ),
+        ParametroConfigSchema(
+            nome="assigned_to_id",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.DINAMICO_USUARIO,
+            valor_template="{user.id}",
+        ),
+    ]
+
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_resp = AsyncMock()
+        mock_resp.status_code = 200
+        mock_resp.headers = {"Content-Type": "application/json"}
+        mock_resp.json = lambda: {"issues": []}
+        mock_get.return_value = mock_resp
+
+        status, latency, data, headers, token, exec_url = await schema_inspector_service.execute_integrated_request(
+            url_base="https://redmine.ufpi.br",
+            path="/issues.json?key={API_KEY}&sort=id:asc",
+            metodo_http=MetodoHttpEnum.GET,
+            tipo_autenticacao=TipoAutenticacaoEnum.API_KEY_QUERY,
+            auth_static_config=auth_cfg,
+            parametros_config=params_custom,
+            context=user_context,
+        )
+
+        assert status == 200
+        mock_get.assert_called_once()
+        call_url = mock_get.call_args.args[0]
+        call_params = mock_get.call_args.kwargs["params"]
+
+        assert "key=redmine_key_999" in call_url
+        assert "sort=id:asc" in call_url
+        assert call_params["updated_on"] == ">=2026-08-23"
+        assert call_params["assigned_to_id"] == "1001"
+
+
+@pytest.mark.asyncio
+async def test_live_tasks_with_reference_date(db, setup_org_and_user):
+    """Tests GET /tarefas-live passing data_referencia parameter."""
+    org = setup_org_and_user["org"]
+    user = setup_org_and_user["user"]
+    token = jwt.encode(
+        {"sub": str(user.id), "role": "GESTOR"},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
+
+    def override_get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+
+    with patch("app.services.integration_engine_service.fetch_live_user_tasks", new_callable=AsyncMock) as mock_live:
+        from app.schemas.integracao import LiveTasksResponse, LiveTaskItem
+        mock_live.return_value = LiveTasksResponse(
+            success=True,
+            total_tarefas=1,
+            tarefas=[
+                LiveTaskItem(
+                    id="101",
+                    titulo="Tarefa da Data Selecionada",
+                    status="Em Andamento",
+                )
+            ],
+            endpoints_consultados=["Redmine Daily"],
+            endpoint_ativo_id=None,
+            endpoint_ativo_nome="Redmine Daily",
+            endpoints_disponiveis=[],
+            erros_ou_avisos=[],
+        )
+
+        resp = client.get(
+            "/api/integracoes/tarefas-live?data_referencia=2026-08-20&funcionalidade=REGISTRO_DIARIO",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Organization-Id": str(org.id),
+            }
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["success"] is True
+        assert data["total_tarefas"] == 1
+        assert data["tarefas"][0]["titulo"] == "Tarefa da Data Selecionada"
+        mock_live.assert_called_once()
+
+
+def test_format_parameter_value_types_and_patterns():
+    """Tests format_parameter_value for all data types and pattern combinations."""
+    from app.models.enums import ParametroTipoDadoEnum
+    from app.services.schema_inspector_service import format_parameter_value
+
+    ref_date = "2026-08-23T15:30:00"
+
+    # 1. Date formatting
+    assert format_parameter_value(ref_date, ParametroTipoDadoEnum.DATA, "YYYY") == "2026"
+    assert format_parameter_value(ref_date, ParametroTipoDadoEnum.DATA, "MM") == "08"
+    assert format_parameter_value(ref_date, ParametroTipoDadoEnum.DATA, "DD") == "23"
+    assert format_parameter_value(ref_date, ParametroTipoDadoEnum.DATA, "YYYY-MM-DD") == "2026-08-23"
+    assert format_parameter_value(ref_date, ParametroTipoDadoEnum.DATA, "DD/MM/YYYY") == "23/08/2026"
+
+    # 2. Number formatting
+    assert format_parameter_value("1234.567", ParametroTipoDadoEnum.NUMERO, "INTEIRO") == "1235"
+    assert format_parameter_value("1234.5", ParametroTipoDadoEnum.NUMERO, "DECIMAL_PONTO") == "1234.50"
+    assert format_parameter_value("1234.5", ParametroTipoDadoEnum.NUMERO, "DECIMAL_VIRGULA") == "1234,50"
+
+    # 3. Text formatting
+    assert format_parameter_value("  hello world  ", ParametroTipoDadoEnum.TEXTO, "MAIUSCULO") == "HELLO WORLD"
+    assert format_parameter_value("HELLO", ParametroTipoDadoEnum.TEXTO, "MINUSCULO") == "hello"
+    assert format_parameter_value("  teste  ", ParametroTipoDadoEnum.TEXTO, "TRIM") == "teste"
+
+    # 4. Boolean formatting
+    # 5. Prefix and Suffix formatting
+    assert format_parameter_value(ref_date, ParametroTipoDadoEnum.DATA, "YYYY-MM-DD", prefixo=">=") == ">=2026-08-23"
+    assert format_parameter_value(ref_date, ParametroTipoDadoEnum.DATA, "YYYY-MM-DD", prefixo="<=", sufixo="T23:59:59Z") == "<=2026-08-23T23:59:59Z"
+    # Inline prefix in value string
+    assert format_parameter_value(">=2026-08-23", ParametroTipoDadoEnum.DATA, "YYYY-MM-DD") == ">=2026-08-23"
+    assert format_parameter_value("<=2026-08-23", ParametroTipoDadoEnum.DATA, "DD/MM/YYYY") == "<=23/08/2026"
+
+
+@pytest.mark.asyncio
+async def test_execute_integrated_request_with_typed_parameters():
+    """Tests execute_integrated_request applying data types and format patterns."""
+    from app.models.enums import ParametroTipoDadoEnum
+
+    user_context = {
+        "id_usuario": "1001",
+        "data_referencia": "2026-08-23",
+    }
+    params_custom = [
+        ParametroConfigSchema(
+            nome="ano",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.VARIAVEL_SISTEMA,
+            tipo_dado=ParametroTipoDadoEnum.DATA,
+            padrao_formatacao="YYYY",
+            valor_template="{data_referencia}",
+        ),
+        ParametroConfigSchema(
+            nome="mes",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.VARIAVEL_SISTEMA,
+            tipo_dado=ParametroTipoDadoEnum.DATA,
+            padrao_formatacao="MM",
+            valor_template="{data_referencia}",
+        ),
+        ParametroConfigSchema(
+            nome="updated_on",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.VARIAVEL_SISTEMA,
+            tipo_dado=ParametroTipoDadoEnum.DATA,
+            padrao_formatacao="YYYY-MM-DD",
+            prefixo=">=",
+            valor_template="{data_referencia}",
+        ),
+        ParametroConfigSchema(
+            nome="limite",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.FIXO,
+            tipo_dado=ParametroTipoDadoEnum.NUMERO,
+            padrao_formatacao="INTEIRO",
+            valor_template="50.0",
+        ),
+    ]
+
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_resp = AsyncMock()
+        mock_resp.status_code = 200
+        mock_resp.headers = {"Content-Type": "application/json"}
+        mock_resp.json = lambda: {"data": []}
+        mock_get.return_value = mock_resp
+
+        status, latency, data, headers, token, exec_url = await schema_inspector_service.execute_integrated_request(
+            url_base="https://api.ufpi.br",
+            path="/relatorios",
+            metodo_http=MetodoHttpEnum.GET,
+            tipo_autenticacao=TipoAutenticacaoEnum.NONE,
+            parametros_config=params_custom,
+            context=user_context,
+        )
+
+        assert status == 200
+        call_params = mock_get.call_args.kwargs["params"]
+        assert call_params["ano"] == "2026"
+        assert call_params["mes"] == "08"
+        assert call_params["updated_on"] == ">=2026-08-23"
+        assert call_params["limite"] == "50"
+
+
+@pytest.mark.asyncio
+async def test_execute_integrated_request_runtime_default_date_offset():
+    """Tests runtime parameter falling back to default value with date offset like {data_referencia-7d}."""
+    from app.models.enums import ParametroTipoDadoEnum
+
+    user_context = {
+        "id_usuario": "1001",
+        "data_referencia": "2026-08-23",
+    }
+    params_runtime = [
+        ParametroConfigSchema(
+            nome="updated_on",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.INFORMADO_USUARIO,
+            tipo_dado=ParametroTipoDadoEnum.DATA,
+            padrao_formatacao="YYYY-MM-DD",
+            prefixo=">=",
+            valor_padrao="{data_referencia-7d}",
+        ),
+    ]
+
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_resp = AsyncMock()
+        mock_resp.status_code = 200
+        mock_resp.headers = {"Content-Type": "application/json"}
+        mock_resp.json = lambda: {"issues": []}
+        mock_get.return_value = mock_resp
+
+        status, _, _, _, _, exec_url = await schema_inspector_service.execute_integrated_request(
+            url_base="https://redmine.ufpi.br",
+            path="/issues.json",
+            metodo_http=MetodoHttpEnum.GET,
+            tipo_autenticacao=TipoAutenticacaoEnum.NONE,
+            parametros_config=params_runtime,
+            context=user_context,
+        )
+
+        assert status == 200
+        call_params = mock_get.call_args.kwargs["params"]
+        # 2026-08-23 minus 7 days is 2026-08-16
+        assert call_params["updated_on"] == ">=2026-08-16"
+
+
+@pytest.mark.asyncio
+async def test_execute_integrated_request_data_hoje_minus_7d_with_residual_template():
+    """Tests runtime parameter with valor_padrao='{data_hoje-7d}' even if valor_template has residual '{data_hoje}'."""
+    from app.models.enums import ParametroTipoDadoEnum
+    from datetime import datetime, timedelta
+
+    expected_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    params_runtime = [
+        ParametroConfigSchema(
+            nome="updated_on",
+            localizacao=ParametroLocalizacaoEnum.QUERY,
+            tipo_origem=ParametroTipoOrigemEnum.INFORMADO_USUARIO,
+            tipo_dado=ParametroTipoDadoEnum.DATA,
+            padrao_formatacao="YYYY-MM-DD",
+            prefixo=">=",
+            valor_template="{data_hoje}",  # Residual from prior state
+            valor_padrao="{data_hoje-7d}",
+        ),
+    ]
+
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_resp = AsyncMock()
+        mock_resp.status_code = 200
+        mock_resp.headers = {"Content-Type": "application/json"}
+        mock_resp.json = lambda: {"issues": []}
+        mock_get.return_value = mock_resp
+
+        status, _, _, _, _, exec_url = await schema_inspector_service.execute_integrated_request(
+            url_base="https://redmine.ufpi.br",
+            path="/issues.json",
+            metodo_http=MetodoHttpEnum.GET,
+            tipo_autenticacao=TipoAutenticacaoEnum.NONE,
+            parametros_config=params_runtime,
+            context={"id_usuario": "123"},
+        )
+
+        assert status == 200
+        call_params = mock_get.call_args.kwargs["params"]
+        assert call_params["updated_on"] == f">={expected_date}"
 
 
 

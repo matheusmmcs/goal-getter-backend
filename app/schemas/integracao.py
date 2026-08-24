@@ -11,6 +11,10 @@ from app.models.enums import (
     ModoExecucaoEnum,
     ParametroLocalizacaoEnum,
     ParametroTipoOrigemEnum,
+    ParametroTipoDadoEnum,
+    ParametroFormatoDataEnum,
+    ParametroFormatoNumeroEnum,
+    ParametroFormatoTextoEnum,
     StatusExecucaoEnum,
     OrigemDisparoEnum,
     EntregaStatusEnum,
@@ -26,10 +30,16 @@ from app.models.enums import (
 class ParametroConfigSchema(BaseModel):
     nome: str = Field(..., description="Nome da chave do parâmetro")
     localizacao: ParametroLocalizacaoEnum = Field(ParametroLocalizacaoEnum.QUERY, description="Onde o parâmetro é injetado: QUERY, PATH, HEADER ou BODY")
-    tipo_origem: ParametroTipoOrigemEnum = Field(ParametroTipoOrigemEnum.FIXO, description="Origem do valor: FIXO, VARIAVEL_SISTEMA, DINAMICO_UNIDADE ou DINAMICO_USUARIO")
-    valor_template: str = Field(..., description="Valor fixo ou template com tags ex: '{ano_atual}', '{codigo_unidade}'")
+    tipo_origem: ParametroTipoOrigemEnum = Field(ParametroTipoOrigemEnum.FIXO, description="Origem do valor: FIXO, VARIAVEL_SISTEMA, DINAMICO_UNIDADE, DINAMICO_USUARIO ou INFORMADO_USUARIO")
+    tipo_dado: ParametroTipoDadoEnum = Field(ParametroTipoDadoEnum.TEXTO, description="Tipo de dado do parâmetro: TEXTO, DATA, DATA_HORA, NUMERO, BOOLEANO")
+    padrao_formatacao: str | None = Field(None, description="Padrão ou formato do dado (ex: 'YYYY-MM-DD', 'YYYY', 'INTEIRO', 'DECIMAL_PONTO', etc.)")
+    prefixo: str | None = Field(None, description="Prefixo opcional injetado antes do valor (ex: '>=', '<=', '>', '<', '~')")
+    sufixo: str | None = Field(None, description="Sufixo opcional injetado após o valor")
+    valor_template: str = Field("", description="Valor fixo ou template com tags ex: '{data_hoje}', '{user.id}', '2026-01-01'")
     obrigatorio: bool = Field(True, description="Se true, a ausência do valor impede o disparo")
     descricao: str | None = None
+    formato_data: str | None = Field(None, description="Formato opcional da data/datetime (retrocompatibilidade)")
+    valor_padrao: str | None = Field(None, description="Valor padrão opcional caso não seja informado")
 
     @model_validator(mode='before')
     @classmethod
@@ -41,6 +51,12 @@ class ParametroConfigSchema(BaseModel):
                 data["nome"] = data["chave"]
             if "valor_template" not in data and "valor" in data:
                 data["valor_template"] = str(data["valor"])
+            if "padrao_formatacao" not in data and "formato_data" in data and data["formato_data"]:
+                data["padrao_formatacao"] = data["formato_data"]
+            if "formato_data" not in data and "padrao_formatacao" in data and data["padrao_formatacao"]:
+                data["formato_data"] = data["padrao_formatacao"]
+            if "tipo_dado" not in data and "tipo" in data:
+                data["tipo_dado"] = data["tipo"]
         return data
 
 
@@ -350,6 +366,7 @@ class TestConnectionResponse(BaseModel):
     headers_returned: dict[str, str] | None = None
     auth_token_preview: str | None = None
     sample_preview: Any | None = None
+    executed_url: str | None = None
 
 
 class JsonTreeNode(BaseModel):
@@ -393,6 +410,9 @@ class InspectSchemaRequest(BaseModel):
 class InspectSchemaResponse(BaseModel):
     success: bool
     latency_ms: float = 0.0
+    status_code: int | None = Field(None, description="Código de status HTTP retornado pelo servidor")
+    executed_method: str | None = Field(None, description="Método HTTP utilizado na requisição")
+    executed_url: str | None = Field(None, description="URL exata com todos os parâmetros resolvidos disparada para a API")
     detected_arrays: list[str] = Field(default_factory=list, description="Lista de caminhos de array detectados como candidatos a items_root_path")
     schema_tree: list[JsonTreeNode] = Field(default_factory=list, description="Árvore de campos para montagem visual do Lego")
     discovered_fields: list[str] = Field(default_factory=list, description="Lista plana de todos os caminhos de propriedades")
@@ -479,6 +499,7 @@ class PreviewMappingResponse(BaseModel):
     total_raw_items: int
     preview_items: list[TransformedItemPreview]
     warnings_or_errors: list[str] = Field(default_factory=list)
+    executed_url: str | None = None
 
 
 class SyncResultResponse(BaseModel):

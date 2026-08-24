@@ -117,6 +117,45 @@ class ParametroTipoOrigemEnum(str, enum.Enum):
     VARIAVEL_SISTEMA = 'VARIAVEL_SISTEMA'
     DINAMICO_UNIDADE = 'DINAMICO_UNIDADE'
     DINAMICO_USUARIO = 'DINAMICO_USUARIO'
+    INFORMADO_USUARIO = 'INFORMADO_USUARIO'
+
+
+class ParametroTipoDadoEnum(str, enum.Enum):
+    TEXTO = 'TEXTO'
+    DATA = 'DATA'
+    DATA_HORA = 'DATA_HORA'
+    NUMERO = 'NUMERO'
+    BOOLEANO = 'BOOLEANO'
+
+
+class ParametroFormatoDataEnum(str, enum.Enum):
+    YYYY_MM_DD = 'YYYY-MM-DD'
+    DD_MM_YYYY = 'DD/MM/YYYY'
+    YYYY = 'YYYY'
+    MM = 'MM'
+    DD = 'DD'
+    YY = 'YY'
+    YYYY_MM_DD_SLASH = 'YYYY/MM/DD'
+    DD_MM_YYYY_DASH = 'DD-MM-YYYY'
+    YYYYMMDD = 'YYYYMMDD'
+    YYYY_MM_DD_HH_MM_SS_Z = 'YYYY-MM-DDTHH:mm:ssZ'
+    YYYY_MM_DD_HH_MM_SS = 'YYYY-MM-DDTHH:mm:ss'
+    TIMESTAMP = 'TIMESTAMP'
+    UNIX_TIMESTAMP = 'UNIX_TIMESTAMP'
+    CUSTOM = 'CUSTOM'
+
+
+class ParametroFormatoNumeroEnum(str, enum.Enum):
+    INTEIRO = 'INTEIRO'
+    DECIMAL_PONTO = 'DECIMAL_PONTO'
+    DECIMAL_VIRGULA = 'DECIMAL_VIRGULA'
+
+
+class ParametroFormatoTextoEnum(str, enum.Enum):
+    PADRAO = 'PADRAO'
+    MAIUSCULO = 'MAIUSCULO'
+    MINUSCULO = 'MINUSCULO'
+    TRIM = 'TRIM'
 
 
 class StatusExecucaoEnum(str, enum.Enum):
@@ -129,6 +168,7 @@ class StatusExecucaoEnum(str, enum.Enum):
 class OrigemDisparoEnum(str, enum.Enum):
     MANUAL = 'MANUAL'
     CRON_AGENDAMENTO = 'CRON_AGENDAMENTO'
+
 
 
 

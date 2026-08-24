@@ -237,15 +237,15 @@ async def run_endpoint_sync(
         # 1. Determine execution iterations (Dynamic Unit, Dynamic User, or Global Single)
         has_dynamic_unit = any(
             (getattr(p, "tipo_origem", None) == ParametroTipoOrigemEnum.DINAMICO_UNIDADE or
-             any(t in (p.valor_template or "") for t in ("{codigo_unidade}", "{sigla_unidade}", "{id_unidade}")))
+             any(t in (p.valor_template or "") for t in ("{codigo_unidade}", "{sigla_unidade}", "{id_unidade}", "{unit.", "{unidade.")))
             for p in params_objs
-        ) or any(t in (endpoint.path or "") for t in ("{codigo_unidade}", "{sigla_unidade}", "{id_unidade}"))
+        ) or any(t in (endpoint.path or "") for t in ("{codigo_unidade}", "{sigla_unidade}", "{id_unidade}", "{unit.", "{unidade."))
 
         has_dynamic_user = any(
             (getattr(p, "tipo_origem", None) == ParametroTipoOrigemEnum.DINAMICO_USUARIO or
-             "{usuario_" in (p.valor_template or "") or "{id_usuario}" in (p.valor_template or ""))
+             any(t in (p.valor_template or "") for t in ("{usuario_", "{id_usuario}", "{user.", "{usuario.")))
             for p in params_objs
-        ) or any(t in (endpoint.path or "") for t in ("{usuario_", "{id_usuario}"))
+        ) or any(t in (endpoint.path or "") for t in ("{usuario_", "{id_usuario}", "{user.", "{usuario."))
 
         iteration_contexts: list[dict[str, Any]] = []
 
@@ -315,7 +315,7 @@ async def run_endpoint_sync(
         raw_items_with_context: list[Tuple[dict[str, Any], dict[str, Any]]] = []
 
         for ctx in iteration_contexts:
-            status_code, _, payload, _, _ = await execute_integrated_request(
+            status_code, _, payload, _, _, _ = await execute_integrated_request(
                 url_base=integracao.url_base,
                 path=endpoint.path,
                 metodo_http=endpoint.metodo_http,
@@ -804,15 +804,15 @@ async def preview_endpoint_sync(
 
     has_dynamic_unit = any(
         (getattr(p, "tipo_origem", None) == ParametroTipoOrigemEnum.DINAMICO_UNIDADE or
-         any(t in (p.valor_template or "") for t in ("{codigo_unidade}", "{sigla_unidade}", "{id_unidade}")))
+         any(t in (p.valor_template or "") for t in ("{codigo_unidade}", "{sigla_unidade}", "{id_unidade}", "{unit.", "{unidade.")))
         for p in params_objs
-    ) or any(t in (endpoint.path or "") for t in ("{codigo_unidade}", "{sigla_unidade}", "{id_unidade}"))
+    ) or any(t in (endpoint.path or "") for t in ("{codigo_unidade}", "{sigla_unidade}", "{id_unidade}", "{unit.", "{unidade."))
 
     has_dynamic_user = any(
         (getattr(p, "tipo_origem", None) == ParametroTipoOrigemEnum.DINAMICO_USUARIO or
-         "{usuario_" in (p.valor_template or "") or "{id_usuario}" in (p.valor_template or ""))
+         any(t in (p.valor_template or "") for t in ("{usuario_", "{id_usuario}", "{user.", "{usuario.")))
         for p in params_objs
-    ) or any(t in (endpoint.path or "") for t in ("{usuario_", "{id_usuario}"))
+    ) or any(t in (endpoint.path or "") for t in ("{usuario_", "{id_usuario}", "{user.", "{usuario."))
 
     iteration_contexts: list[dict[str, Any]] = []
 
@@ -886,7 +886,7 @@ async def preview_endpoint_sync(
     motivos_erros: list[SyncPreviewErrorDetail] = []
 
     for ctx in iteration_contexts:
-        status_code, _, payload, _, _ = await execute_integrated_request(
+        status_code, _, payload, _, _, _ = await execute_integrated_request(
             url_base=integracao.url_base,
             path=endpoint.path,
             metodo_http=endpoint.metodo_http,
@@ -1261,6 +1261,8 @@ async def fetch_live_user_tasks(
     id_unidade: UUID | None = None,
     id_endpoint: UUID | None = None,
     funcionalidade: str = "REGISTRO_DIARIO",
+    data_referencia: str | None = None,
+    parametros_runtime: dict[str, Any] | None = None,
 ) -> LiveTasksResponse:
     """Fetches on-demand external tasks in real-time for the user in the active organization context."""
     all_raw_endpoints = (
@@ -1333,6 +1335,8 @@ async def fetch_live_user_tasks(
     ).first()
 
     clean_cpf = usuario.cpf.replace('.', '').replace('-', '').strip() if usuario.cpf else ""
+    ref_date_str = str(data_referencia).strip() if data_referencia else now_in_app_timezone().strftime("%Y-%m-%d")
+
     user_context: dict[str, Any] = {
         "id_organizacao": str(id_organizacao),
         "id_usuario": str(usuario.id),
@@ -1340,7 +1344,15 @@ async def fetch_live_user_tasks(
         "cpf_usuario": clean_cpf,
         "usuario_email": usuario.email or "",
         "usuario_login": usuario.usuario or "",
+        "data_referencia": ref_date_str,
+        "data_selecionada": ref_date_str,
+        "data_diario": ref_date_str,
     }
+    if parametros_runtime and isinstance(parametros_runtime, dict):
+        for k, v in parametros_runtime.items():
+            if v is not None:
+                user_context[str(k)] = str(v)
+
     if vinculo and vinculo.campos_customizados and isinstance(vinculo.campos_customizados, dict):
         for k, v in vinculo.campos_customizados.items():
             user_context[f"usuario_{k}"] = str(v) if v is not None else ""
@@ -1393,7 +1405,7 @@ async def fetch_live_user_tasks(
                     params_objs.append(p)
 
         try:
-            status_code, _, payload, _, err_msg = await execute_integrated_request(
+            status_code, _, payload, _, err_msg, _ = await execute_integrated_request(
                 url_base=ep.integracao_config.url_base,
                 path=ep.path,
                 metodo_http=ep.metodo_http,

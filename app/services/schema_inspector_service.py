@@ -2,8 +2,9 @@ import time
 import re
 import json
 import base64
+import calendar
 import urllib.parse
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Any, Tuple
 import httpx
 
@@ -13,6 +14,10 @@ from app.models.enums import (
     TipoIntegracaoEnum,
     ParametroLocalizacaoEnum,
     ParametroTipoOrigemEnum,
+    ParametroTipoDadoEnum,
+    ParametroFormatoDataEnum,
+    ParametroFormatoNumeroEnum,
+    ParametroFormatoTextoEnum,
     EntregaStatusEnum,
     MetaStatusEnum,
 )
@@ -54,46 +59,373 @@ def join_url(url_base: str, path: str | None) -> str:
     return f"{base.rstrip('/')}/{p.lstrip('/')}"
 
 
-def resolve_template_string(template_str: str, context: dict[str, Any]) -> str:
-    """Substitutes template tags like {ano_atual}, {data_hoje}, {codigo_unidade} from context."""
+def format_date_by_pattern(dt: datetime | date, pattern: str) -> str:
+    """Formats datetime/date using custom pattern (e.g. YYYY-MM-DD, DD/MM/YYYY, YYYY-MM-DDTHH:mm:ssZ, TIMESTAMP)."""
+    if not dt or not pattern:
+        return ""
+    if not isinstance(dt, datetime):
+        dt = datetime.combine(dt, datetime.min.time())
+
+    p_upper = pattern.upper().strip()
+    if p_upper in ("TIMESTAMP", "UNIX_TIMESTAMP"):
+        return str(int(dt.timestamp()))
+
+    tokens = {
+        "YYYY": f"{dt.year:04d}",
+        "YY": f"{dt.year % 100:02d}",
+        "MM": f"{dt.month:02d}",
+        "DD": f"{dt.day:02d}",
+        "HH": f"{dt.hour:02d}",
+        "mm": f"{dt.minute:02d}",
+        "ss": f"{dt.second:02d}",
+    }
+    return re.sub(r'(YYYY|YY|MM|DD|HH|mm|ss)', lambda m: tokens.get(m.group(0), m.group(0)), pattern)
+
+
+def format_parameter_value(
+    raw_val: Any,
+    tipo_dado: str | ParametroTipoDadoEnum | None = None,
+    padrao_formatacao: str | None = None,
+    formato_data: str | None = None,
+    prefixo: str | None = None,
+    sufixo: str | None = None,
+) -> Any:
+    """
+    Formats a resolved parameter value according to its data type (DATA, DATA_HORA, NUMERO, TEXTO, BOOLEANO)
+    and specified format pattern (e.g. YYYY-MM-DD, YYYY, MM, DD, INTEIRO, DECIMAL_PONTO, DECIMAL_VIRGULA, MAIUSCULO, etc.).
+    Supports prefix and suffix wrapping (e.g. '>=2026-08-24').
+    """
+    if raw_val is None:
+        return None
+    val_str = str(raw_val).strip()
+    if val_str == "":
+        return ""
+
+    fmt = padrao_formatacao or formato_data
+    t_dado = str(tipo_dado.value if hasattr(tipo_dado, "value") else tipo_dado).upper() if tipo_dado else None
+
+    # Check if raw_val has an inline operator prefix like '>=', '<=', '>', '<', '=', '~'
+    lead_op = ""
+    clean_val = val_str
+    if t_dado in ("DATA", "PARAMETROTIPODADOENUM.DATA", "DATE", "DATA_HORA", "PARAMETROTIPODADOENUM.DATA_HORA", "DATETIME"):
+        op_match = re.match(r'^([><=!~]+)\s*(.*)$', val_str)
+        if op_match:
+            lead_op = op_match.group(1)
+            clean_val = op_match.group(2)
+
+    result_val = val_str
+
+    # Handle DATA and DATA_HORA
+    if t_dado in ("DATA", "PARAMETROTIPODADOENUM.DATA", "DATE"):
+        dt = _parse_reference_date(clean_val)
+        pattern = fmt or "YYYY-MM-DD"
+        result_val = f"{lead_op}{format_date_by_pattern(dt, pattern)}"
+
+    elif t_dado in ("DATA_HORA", "PARAMETROTIPODADOENUM.DATA_HORA", "DATETIME"):
+        dt = _parse_reference_date(clean_val)
+        pattern = fmt or "YYYY-MM-DDTHH:mm:ssZ"
+        result_val = f"{lead_op}{format_date_by_pattern(dt, pattern)}"
+
+    # Handle NUMERO
+    elif t_dado in ("NUMERO", "PARAMETROTIPODADOENUM.NUMERO", "NUMBER", "INTEGER", "FLOAT"):
+        try:
+            cleaned = val_str.replace(" ", "").replace(",", ".")
+            num_val = float(cleaned)
+            fmt_upper = (fmt or "").upper().strip()
+            if fmt_upper in ("INTEIRO", "INTEGER", "INT"):
+                result_val = str(int(round(num_val)))
+            elif fmt_upper in ("DECIMAL_VIRGULA", "FLOAT_COMMA"):
+                result_val = f"{num_val:.2f}".replace(".", ",")
+            elif fmt_upper in ("DECIMAL_PONTO", "FLOAT_DOT"):
+                result_val = f"{num_val:.2f}"
+            else:
+                if num_val.is_integer():
+                    result_val = str(int(num_val))
+                else:
+                    result_val = str(num_val)
+        except Exception:
+            result_val = val_str
+
+    # Handle BOOLEANO
+    elif t_dado in ("BOOLEANO", "PARAMETROTIPODADOENUM.BOOLEANO", "BOOLEAN", "BOOL"):
+        result_val = "true" if val_str.lower() in ("true", "1", "t", "yes", "sim", "s") else "false"
+
+    # Handle TEXTO (default)
+    else:
+        if fmt:
+            fmt_upper = fmt.upper().strip()
+            if fmt_upper in ("MAIUSCULO", "UPPERCASE", "UPPER"):
+                result_val = val_str.upper()
+            elif fmt_upper in ("MINUSCULO", "LOWERCASE", "LOWER"):
+                result_val = val_str.lower()
+            elif fmt_upper in ("TRIM", "STRIP"):
+                result_val = val_str.strip()
+            else:
+                result_val = val_str
+        else:
+            result_val = val_str
+
+    # Apply explicit prefixo / sufixo if specified
+    pref = prefixo or ""
+    suf = sufixo or ""
+    if pref or suf:
+        result_val = f"{pref}{result_val}{suf}"
+
+    return result_val
+
+
+def _apply_date_offset(dt: datetime, offset_expr: str) -> datetime:
+    """Applies offset like -1d, -7d, +30d, or special start_of_month/start_of_year."""
+    clean = offset_expr.strip().lower()
+    if clean in ("inicio_mes", "start_of_month"):
+        return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if clean in ("fim_mes", "end_of_month"):
+        _, last_day = calendar.monthrange(dt.year, dt.month)
+        return dt.replace(day=last_day, hour=23, minute=59, second=59, microsecond=0)
+    if clean in ("inicio_ano", "start_of_year"):
+        return dt.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    m = re.match(r'^([+-]?\d+)\s*([dhmw]?)$', clean)
+    if m:
+        amount = int(m.group(1))
+        unit = m.group(2) or 'd'
+        if unit == 'd':
+            return dt + timedelta(days=amount)
+        elif unit == 'w':
+            return dt + timedelta(weeks=amount)
+        elif unit == 'h':
+            return dt + timedelta(hours=amount)
+        elif unit == 'm':
+            return dt + timedelta(minutes=amount)
+    return dt
+
+
+def _parse_reference_date(val: Any) -> datetime:
+    """Parses reference date string/object or returns current datetime."""
+    now = datetime.now()
+    if not val:
+        return now
+    if isinstance(val, datetime):
+        return val
+    if isinstance(val, date):
+        return datetime.combine(val, datetime.min.time())
+    if isinstance(val, str):
+        clean = val.strip().strip("{}").lower()
+        if clean.startswith("data_hoje"):
+            offset = clean[len("data_hoje"):]
+            return _apply_date_offset(now, offset)
+        elif clean.startswith("data_ontem"):
+            yesterday = now - timedelta(days=1)
+            offset = clean[len("data_ontem"):]
+            return _apply_date_offset(yesterday, offset)
+        elif clean.startswith("data_referencia") or clean.startswith("data_selecionada") or clean.startswith("data_diario"):
+            offset = re.sub(r'^(data_referencia|data_selecionada|data_diario)', '', clean)
+            return _apply_date_offset(now, offset)
+        elif clean in ("inicio_mes", "start_of_month"):
+            return _apply_date_offset(now, "inicio_mes")
+        elif clean in ("fim_mes", "end_of_month"):
+            return _apply_date_offset(now, "fim_mes")
+        elif clean in ("inicio_ano", "start_of_year"):
+            return _apply_date_offset(now, "inicio_ano")
+
+        try:
+            return datetime.fromisoformat(val.replace("Z", "+00:00"))
+        except Exception:
+            pass
+        try:
+            d = parse_date_safe(val)
+            if d:
+                return datetime.combine(d, datetime.min.time())
+        except Exception:
+            pass
+    return now
+
+
+def resolve_template_string(template_str: str, context: dict[str, Any] | None = None) -> str:
+    """
+    Substitutes template tags in strings. Supports:
+    - User/Unit variables & aliases: {user.id}, {id_usuario}, {user.login}, {user.cpf}, {user.email}, {unit.code}, etc.
+    - System variables & formats: {ano_atual}, {mes_atual}, {data_hoje}, {data_ontem}, {data_referencia}
+    - Direct date format patterns: {YYYY-MM-DD}, {YYYY/MM/DD}, {DD-MM-YYYY}, {DD/MM/YYYY}, {YYYYMMDD}, {YYYY-MM-DDTHH:mm:ssZ}, {TIMESTAMP}
+    - Parameterized formats: {data_hoje:YYYY-MM-DD}, {data_referencia:DD/MM/YYYY}, {data_hoje-7d:YYYY-MM-DD}
+    - Date arithmetic & relative dates: {data_hoje-1d}, {data_hoje-7d}, {data_hoje-30d}, {inicio_mes}, {fim_mes}, {inicio_ano}
+    - Auth tokens: {API_KEY}, {TOKEN}, {BEARER_TOKEN}
+    """
     if not template_str:
         return ""
-    now = datetime.now()
+
+    raw_ctx = dict(context or {})
+    now_dt = datetime.now()
+    yesterday_dt = now_dt - timedelta(days=1)
+    ref_dt = _parse_reference_date(raw_ctx.get("data_referencia") or raw_ctx.get("data_selecionada") or raw_ctx.get("data_diario"))
+
     default_context = {
-        "ano_atual": str(now.year),
-        "mes_atual": f"{now.month:02d}",
-        "data_hoje": now.strftime("%Y-%m-%d"),
-        "data_ontem": date.fromordinal(now.toordinal() - 1).strftime("%Y-%m-%d"),
-        "ano": str(now.year),
-        "mes": f"{now.month:02d}",
+        "ano_atual": str(now_dt.year),
+        "mes_atual": f"{now_dt.month:02d}",
+        "ano": str(now_dt.year),
+        "mes": f"{now_dt.month:02d}",
+        "data_hoje": now_dt.strftime("%Y-%m-%d"),
+        "data_ontem": yesterday_dt.strftime("%Y-%m-%d"),
+        "data_referencia": ref_dt.strftime("%Y-%m-%d"),
+        "data_selecionada": ref_dt.strftime("%Y-%m-%d"),
+        "data_diario": ref_dt.strftime("%Y-%m-%d"),
     }
-    merged = {**default_context, **context}
-    
-    # Expande automaticamente apelidos para tags de campos customizados (ex: usuario_xpto <-> xpto)
+    merged: dict[str, Any] = {**default_context, **raw_ctx}
+
+    # Aliases de Usuário
+    usr_id = merged.get("id_usuario") or merged.get("usuario_id") or merged.get("id_user") or merged.get("user_id")
+    if usr_id is not None:
+        merged.setdefault("user.id", usr_id)
+        merged.setdefault("usuario.id", usr_id)
+        merged.setdefault("id_usuario", usr_id)
+        merged.setdefault("usuario_id", usr_id)
+
+    usr_login = merged.get("usuario_login") or merged.get("user_login") or merged.get("usuario")
+    if usr_login is not None:
+        merged.setdefault("user.login", usr_login)
+        merged.setdefault("usuario.login", usr_login)
+        merged.setdefault("usuario_login", usr_login)
+
+    usr_email = merged.get("usuario_email") or merged.get("user_email") or merged.get("email")
+    if usr_email is not None:
+        merged.setdefault("user.email", usr_email)
+        merged.setdefault("usuario.email", usr_email)
+        merged.setdefault("usuario_email", usr_email)
+
+    usr_cpf = merged.get("usuario_cpf") or merged.get("cpf_usuario") or merged.get("cpf")
+    if usr_cpf is not None:
+        merged.setdefault("user.cpf", usr_cpf)
+        merged.setdefault("usuario.cpf", usr_cpf)
+        merged.setdefault("usuario_cpf", usr_cpf)
+
+    usr_nome = merged.get("usuario_nome") or merged.get("user_name") or merged.get("nome")
+    if usr_nome is not None:
+        merged.setdefault("user.name", usr_nome)
+        merged.setdefault("user.nome", usr_nome)
+        merged.setdefault("usuario.nome", usr_nome)
+        merged.setdefault("usuario_nome", usr_nome)
+
+    # Aliases de Unidade
+    und_code = merged.get("codigo_unidade") or merged.get("sigla_unidade") or merged.get("sigla") or merged.get("id_unidade")
+    if und_code is not None:
+        merged.setdefault("unit.code", und_code)
+        merged.setdefault("unit.sigla", und_code)
+        merged.setdefault("unidade.sigla", und_code)
+        merged.setdefault("codigo_unidade", und_code)
+
+    und_id = merged.get("id_unidade") or merged.get("unidade_id")
+    if und_id is not None:
+        merged.setdefault("unit.id", und_id)
+        merged.setdefault("unidade.id", und_id)
+        merged.setdefault("id_unidade", und_id)
+
+    und_nome = merged.get("nome_unidade") or merged.get("unidade_nome")
+    if und_nome is not None:
+        merged.setdefault("unit.name", und_nome)
+        merged.setdefault("unidade.nome", und_nome)
+        merged.setdefault("nome_unidade", und_nome)
+
+    # Expande automaticamente apelidos para campos customizados
     extra_aliases = {}
-    for k, v in merged.items():
+    for k, v in list(merged.items()):
         if v is not None:
             if k.startswith("usuario_"):
                 short_k = k[len("usuario_"):]
-                if short_k not in merged:
-                    extra_aliases[short_k] = v
+                extra_aliases.setdefault(short_k, v)
+                extra_aliases.setdefault(f"user.{short_k}", v)
+                extra_aliases.setdefault(f"usuario.{short_k}", v)
+            elif k.startswith("user."):
+                short_k = k[len("user."):]
+                extra_aliases.setdefault(short_k, v)
+                extra_aliases.setdefault(f"usuario_{short_k}", v)
+                extra_aliases.setdefault(f"usuario.{short_k}", v)
             elif k.startswith("unidade_"):
                 short_k = k[len("unidade_"):]
-                if short_k not in merged:
-                    extra_aliases[short_k] = v
-            else:
-                usr_k = f"usuario_{k}"
-                if usr_k not in merged:
-                    extra_aliases[usr_k] = v
-                und_k = f"unidade_{k}"
-                if und_k not in merged:
-                    extra_aliases[und_k] = v
+                extra_aliases.setdefault(short_k, v)
+                extra_aliases.setdefault(f"unit.{short_k}", v)
+                extra_aliases.setdefault(f"unidade.{short_k}", v)
+            elif k.startswith("unit."):
+                short_k = k[len("unit."):]
+                extra_aliases.setdefault(short_k, v)
+                extra_aliases.setdefault(f"unidade_{short_k}", v)
+                extra_aliases.setdefault(f"unidade.{short_k}", v)
     merged.update(extra_aliases)
 
-    result = template_str
-    for k, v in merged.items():
-        if v is not None:
-            result = result.replace(f"{{{k}}}", str(v))
+    # Known direct format patterns and date arithmetic tokens
+    direct_date_formats = {
+        "YYYY-MM-DD",
+        "YYYY/MM/DD",
+        "DD-MM-YYYY",
+        "DD/MM/YYYY",
+        "YYYYMMDD",
+        "YYYY-MM-DDTHH:mm:ss",
+        "YYYY-MM-DDTHH:mm:ssZ",
+        "YYYY-MM",
+        "TIMESTAMP",
+        "UNIX_TIMESTAMP",
+    }
+
+    # Callback to resolve each {tag}
+    def replace_tag_match(match: re.Match) -> str:
+        tag = match.group(1).strip()
+
+        # 1. Direct key match in merged context
+        if tag in merged and merged[tag] is not None:
+            return str(merged[tag])
+
+        # 2. Direct date format pattern (evaluated against reference date)
+        if tag in direct_date_formats:
+            return format_date_by_pattern(ref_dt, tag)
+
+        # 3. Parameterized format {base_var:format_pattern}
+        if ":" in tag:
+            base_var, fmt = tag.split(":", 1)
+            base_var = base_var.strip()
+            fmt = fmt.strip()
+
+            target_dt = None
+            if base_var.startswith("data_hoje"):
+                offset = base_var[len("data_hoje"):]
+                target_dt = _apply_date_offset(now_dt, offset) if offset else now_dt
+            elif base_var.startswith("data_ontem"):
+                offset = base_var[len("data_ontem"):]
+                target_dt = _apply_date_offset(yesterday_dt, offset) if offset else yesterday_dt
+            elif base_var.startswith("data_referencia") or base_var.startswith("data_selecionada") or base_var.startswith("data_diario"):
+                offset = re.sub(r'^(data_referencia|data_selecionada|data_diario)', '', base_var)
+                target_dt = _apply_date_offset(ref_dt, offset) if offset else ref_dt
+            elif base_var in ("inicio_mes", "start_of_month"):
+                target_dt = _apply_date_offset(ref_dt, "inicio_mes")
+            elif base_var in ("fim_mes", "end_of_month"):
+                target_dt = _apply_date_offset(ref_dt, "fim_mes")
+            elif base_var in ("inicio_ano", "start_of_year"):
+                target_dt = _apply_date_offset(ref_dt, "inicio_ano")
+            elif base_var in merged and merged[base_var] is not None:
+                target_dt = _parse_reference_date(merged[base_var])
+
+            if target_dt is not None:
+                return format_date_by_pattern(target_dt, fmt)
+
+        # 4. Date arithmetic tokens without explicit format (defaults to YYYY-MM-DD)
+        if tag.startswith("data_hoje") and len(tag) > len("data_hoje"):
+            offset = tag[len("data_hoje"):]
+            target_dt = _apply_date_offset(now_dt, offset)
+            return target_dt.strftime("%Y-%m-%d")
+        if tag.startswith("data_referencia") and len(tag) > len("data_referencia"):
+            offset = tag[len("data_referencia"):]
+            target_dt = _apply_date_offset(ref_dt, offset)
+            return target_dt.strftime("%Y-%m-%d")
+        if tag in ("inicio_mes", "start_of_month"):
+            return _apply_date_offset(ref_dt, "inicio_mes").strftime("%Y-%m-%d")
+        if tag in ("fim_mes", "end_of_month"):
+            return _apply_date_offset(ref_dt, "fim_mes").strftime("%Y-%m-%d")
+        if tag in ("inicio_ano", "start_of_year"):
+            return _apply_date_offset(ref_dt, "inicio_ano").strftime("%Y-%m-%d")
+
+        # Tag not found in context - keep as is or blank if empty
+        return match.group(0)
+
+    # Perform replacement on all {placeholder} occurrences
+    result = re.sub(r'\{([^{}]+)\}', replace_tag_match, template_str)
     return result
 
 
@@ -273,16 +605,27 @@ async def execute_integrated_request(
     timeout: float = 15.0,
 ) -> Tuple[int, float, Any, dict[str, str], str | None]:
     """Executes full integrated HTTP request resolving parameters, path tags, headers, and dynamic auth."""
-    ctx = context or {}
-    
-    # 1. Resolve path template
-    resolved_path = resolve_template_string(path, ctx)
-    full_url = join_url(url_base, resolved_path)
+    ctx = dict(context or {})
 
-    if not is_safe_url(full_url):
-        raise ValueError(f"URL de destino inválida: {full_url}")
+    # 1. Inject static auth keys/tokens into resolution context
+    if auth_static_config and isinstance(auth_static_config, dict):
+        key_val = (
+            auth_static_config.get("api_key")
+            or auth_static_config.get("param_value")
+            or auth_static_config.get("key")
+            or auth_static_config.get("token")
+            or auth_static_config.get("bearer_token")
+            or auth_static_config.get("header_value")
+        )
+        if key_val:
+            ctx.setdefault("API_KEY", str(key_val))
+            ctx.setdefault("api_key", str(key_val))
+            ctx.setdefault("TOKEN", str(key_val))
+            ctx.setdefault("token", str(key_val))
+            ctx.setdefault("BEARER_TOKEN", str(key_val))
+            ctx.setdefault("bearer_token", str(key_val))
 
-    # 2. Build auth & headers
+    # 2. Build auth & headers (obtains dynamic auth token if configured)
     headers, auth_tuple, dynamic_token = await prepare_request_headers_and_auth(
         url_base=url_base,
         tipo_autenticacao=tipo_autenticacao,
@@ -295,8 +638,22 @@ async def execute_integrated_request(
         headers_padrao=headers_padrao,
         headers_custom=headers_custom,
     )
+    if dynamic_token:
+        ctx.setdefault("TOKEN", str(dynamic_token))
+        ctx.setdefault("token", str(dynamic_token))
+        ctx.setdefault("API_KEY", str(dynamic_token))
+        ctx.setdefault("api_key", str(dynamic_token))
+        ctx.setdefault("BEARER_TOKEN", str(dynamic_token))
+        ctx.setdefault("bearer_token", str(dynamic_token))
 
-    # 3. Process parameters
+    # 3. Resolve path template and join url
+    resolved_path = resolve_template_string(path, ctx)
+    full_url = join_url(url_base, resolved_path)
+
+    if not is_safe_url(full_url):
+        raise ValueError(f"URL de destino inválida: {full_url}")
+
+    # 4. Process parameters
     query_params: dict[str, Any] = {}
     body_data = None
 
@@ -319,17 +676,53 @@ async def execute_integrated_request(
 
     if parametros_config:
         for p in parametros_config:
-            val = resolve_template_string(p.valor_template, ctx)
+            if p.tipo_origem == ParametroTipoOrigemEnum.INFORMADO_USUARIO:
+                # Runtime parameter: check if explicitly passed in context
+                val = ctx.get(p.nome) if ctx else None
+                if val is None or val == "":
+                    if p.valor_padrao:
+                        val = resolve_template_string(p.valor_padrao, ctx)
+                    else:
+                        val = ""
+            else:
+                tmpl = p.valor_template
+                # If tmpl is empty, resolve based on tipo_origem / tipo_dado
+                if not tmpl:
+                    if p.tipo_origem == ParametroTipoOrigemEnum.VARIAVEL_SISTEMA:
+                        t_dado = getattr(p, "tipo_dado", None)
+                        t_dado_str = str(t_dado.value if hasattr(t_dado, "value") else t_dado).upper() if t_dado else ""
+                        if t_dado_str in ("DATA", "DATA_HORA"):
+                            tmpl = "{data_hoje}"
+                        else:
+                            tmpl = f"{{{p.nome}}}"
+                    else:
+                        tmpl = f"{{{p.nome}}}"
+
+                val = resolve_template_string(tmpl, ctx)
+                if (val is None or val == "" or val == f"{{{p.nome}}}"):
+                    if p.valor_padrao:
+                        val = resolve_template_string(p.valor_padrao, ctx)
+                    elif val == f"{{{p.nome}}}":
+                        val = ""
+
+            # Apply type and pattern formatting + prefix/suffix
+            tipo_dado = getattr(p, "tipo_dado", None)
+            padrao = getattr(p, "padrao_formatacao", None) or getattr(p, "formato_data", None)
+            pref = getattr(p, "prefixo", None)
+            suf = getattr(p, "sufixo", None)
+            if val is not None and val != "":
+                val = format_parameter_value(val, tipo_dado, padrao, prefixo=pref, sufixo=suf)
+
             if p.obrigatorio and (val is None or val == ""):
                 raise ValueError(f"Parâmetro obrigatório '{p.nome}' não pôde ser resolvido com o contexto fornecido.")
-            
+
             loc = p.localizacao
             if loc == ParametroLocalizacaoEnum.QUERY:
                 query_params[p.nome] = val
             elif loc == ParametroLocalizacaoEnum.HEADER:
-                headers[p.nome] = val
+                headers[p.nome] = str(val) if val is not None else ""
             elif loc == ParametroLocalizacaoEnum.PATH:
-                full_url = full_url.replace(f"{{{p.nome}}}", urllib.parse.quote(val))
+                full_url = full_url.replace(f"{{{p.nome}}}", urllib.parse.quote(str(val) if val is not None else ""))
 
     if corpo_requisicao and metodo_http == MetodoHttpEnum.POST:
         resolved_body = resolve_template_string(corpo_requisicao, ctx)
@@ -353,19 +746,20 @@ async def execute_integrated_request(
 
     latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
     resp_headers = {k: v for k, v in resp.headers.items()}
+    executed_url = str(resp.request.url)
 
     try:
         parsed_data = resp.json()
     except Exception:
         parsed_data = {"raw_text": resp.text[:2000]}
 
-    return resp.status_code, latency_ms, parsed_data, resp_headers, dynamic_token
+    return resp.status_code, latency_ms, parsed_data, resp_headers, dynamic_token, executed_url
 
 
 async def test_connection(req: TestConnectionRequest) -> TestConnectionResponse:
     """Tests connection to URL_INTEGRACAO base and verifies authentication."""
     try:
-        status_code, latency_ms, data, headers_ret, token = await execute_integrated_request(
+        status_code, latency_ms, data, headers_ret, token, executed_url = await execute_integrated_request(
             url_base=req.url_base,
             path="",
             metodo_http=MetodoHttpEnum.GET,
@@ -388,6 +782,7 @@ async def test_connection(req: TestConnectionRequest) -> TestConnectionResponse:
             headers_returned=headers_ret,
             auth_token_preview=token[:20] + "..." if token else None,
             sample_preview=data if isinstance(data, (dict, list)) else {"preview": str(data)[:200]},
+            executed_url=executed_url,
         )
     except Exception as e:
         return TestConnectionResponse(
@@ -585,6 +980,8 @@ async def inspect_schema(req: InspectSchemaRequest) -> InspectSchemaResponse:
     """Inspects external endpoint or raw payload and returns tree and detected arrays."""
     latency_ms = 0.0
     payload = req.raw_sample
+    last_executed_url = None
+    last_status_code = None
 
     if payload is None:
         contexts_to_run = req.iteration_contexts if req.iteration_contexts and len(req.iteration_contexts) > 0 else [req.context]
@@ -594,7 +991,7 @@ async def inspect_schema(req: InspectSchemaRequest) -> InspectSchemaResponse:
 
         for c_idx, ctx in enumerate(contexts_to_run):
             try:
-                status_code, lat, data, _, _ = await execute_integrated_request(
+                status_code, lat, data, _, _, exec_url = await execute_integrated_request(
                     url_base=req.url_base,
                     path=req.path,
                     metodo_http=req.metodo_http,
@@ -612,6 +1009,8 @@ async def inspect_schema(req: InspectSchemaRequest) -> InspectSchemaResponse:
                     context=ctx,
                 )
                 latencies.append(lat)
+                last_executed_url = exec_url
+                last_status_code = status_code
                 if 200 <= status_code < 300:
                     if data is not None:
                         all_payloads.append(data)
@@ -628,6 +1027,9 @@ async def inspect_schema(req: InspectSchemaRequest) -> InspectSchemaResponse:
             return InspectSchemaResponse(
                 success=False,
                 latency_ms=latency_ms,
+                status_code=last_status_code,
+                executed_method=req.metodo_http.value if hasattr(req.metodo_http, "value") else str(req.metodo_http),
+                executed_url=last_executed_url,
                 detected_arrays=[],
                 schema_tree=[],
                 discovered_fields=[],
@@ -673,6 +1075,9 @@ async def inspect_schema(req: InspectSchemaRequest) -> InspectSchemaResponse:
     return InspectSchemaResponse(
         success=True,
         latency_ms=latency_ms,
+        status_code=last_status_code or 200,
+        executed_method=req.metodo_http.value if hasattr(req.metodo_http, "value") else str(req.metodo_http),
+        executed_url=last_executed_url,
         detected_arrays=detected_arrays,
         schema_tree=schema_tree,
         discovered_fields=discovered_fields,
@@ -915,7 +1320,7 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
         )
 
     contexts_to_run = req.iteration_contexts if req.iteration_contexts and len(req.iteration_contexts) > 0 else [req.context]
-
+    last_executed_url = None
     total_raw = 0
     for c_idx, ctx in enumerate(contexts_to_run):
         raw_data = req.raw_data if (c_idx == 0 and req.raw_data is not None) else None
@@ -927,11 +1332,12 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
                         tipo_integracao=req.tipo_integracao,
                         total_raw_items=0,
                         preview_items=[],
-                        warnings_or_errors=["Informe 'raw_data' ou 'url_base' para simular a transformação."]
+                        warnings_or_errors=["Informe 'raw_data' ou 'url_base' para simular a transformação."],
+                        executed_url=None,
                     )
                 continue
             try:
-                status_code, _, data, _, _ = await execute_integrated_request(
+                status_code, _, data, _, _, exec_url = await execute_integrated_request(
                     url_base=req.url_base,
                     path=req.path,
                     metodo_http=req.metodo_http,
@@ -948,6 +1354,7 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
                     corpo_requisicao=req.corpo_requisicao,
                     context=ctx,
                 )
+                last_executed_url = exec_url
                 if not (200 <= status_code < 300):
                     warnings.append(f"Contexto #{c_idx+1} retornou status HTTP {status_code}: {str(data)[:150]}")
                     continue
@@ -976,5 +1383,6 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
         tipo_integracao=req.tipo_integracao,
         total_raw_items=total_raw if total_raw > 0 else len(transformed),
         preview_items=transformed,
-        warnings_or_errors=warnings
+        warnings_or_errors=warnings,
+        executed_url=last_executed_url,
     )

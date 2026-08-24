@@ -59,6 +59,7 @@ async def get_live_tasks(
     id_unidade: UUID | None = Query(None, description="Identificador opcional da unidade"),
     id_endpoint: UUID | None = Query(None, description="Identificador opcional do endpoint a ser consultado"),
     funcionalidade: str = Query("REGISTRO_DIARIO", description="Funcionalidade que está solicitando as tarefas"),
+    data_referencia: str | None = Query(None, description="Data de referência para consulta (YYYY-MM-DD)"),
     org: Organizacao = Depends(require_active_organization),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
@@ -70,6 +71,7 @@ async def get_live_tasks(
         id_unidade=id_unidade,
         id_endpoint=id_endpoint,
         funcionalidade=funcionalidade,
+        data_referencia=data_referencia,
     )
     return success_response(data=result.model_dump(mode='json'), message="integration.live_tasks_fetched")
 
