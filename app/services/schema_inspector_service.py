@@ -102,7 +102,7 @@ def format_parameter_value(
         return ""
 
     fmt = padrao_formatacao or formato_data
-    t_dado = str(tipo_dado.value if hasattr(tipo_dado, "value") else tipo_dado).upper() if tipo_dado else None
+    t_dado = str(getattr(tipo_dado, "value", tipo_dado)).upper() if tipo_dado else None
 
     # Check if raw_val has an inline operator prefix like '>=', '<=', '>', '<', '=', '~'
     lead_op = ""
@@ -603,7 +603,7 @@ async def execute_integrated_request(
     corpo_requisicao: str | None = None,
     context: dict[str, Any] | None = None,
     timeout: float = 15.0,
-) -> Tuple[int, float, Any, dict[str, str], str | None]:
+) -> Tuple[int, float, Any, dict[str, str], str | None, str]:
     """Executes full integrated HTTP request resolving parameters, path tags, headers, and dynamic auth."""
     ctx = dict(context or {})
 

@@ -4,6 +4,7 @@ from sqlalchemy import desc, func
 from fastapi import HTTPException
 
 from app.core.timezone import now_in_app_timezone
+from app.models.enums import StatusIntegracaoEnum
 from app.models.integracao_config import IntegracaoConfig
 from app.models.integracao_endpoint import IntegracaoEndpoint
 from app.models.integracao_mapeamento import IntegracaoMapeamento
@@ -340,6 +341,7 @@ def update_integracao(db: Session, id_organizacao: UUID, integracao_id: UUID, da
         cfg.descricao = data.descricao
     if data.status is not None:
         cfg.status = data.status
+        cfg.ativo = (data.status != StatusIntegracaoEnum.INATIVO)
     if data.provedor is not None:
         cfg.provedor = data.provedor
     if data.url_base is not None:
