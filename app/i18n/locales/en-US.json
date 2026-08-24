@@ -167,7 +167,19 @@
     "mapping_previewed": "Mapping preview generated",
     "mapping_not_configured": "Integration field mapping is not configured",
     "preview_generated": "Synchronization preview generated successfully",
-    "sync_completed": "Synchronization completed successfully"
+    "sync_completed": "Synchronization completed successfully",
+    "live_tasks_fetched": "On-demand live tasks retrieved successfully"
+  },
+  "campo_customizado": {
+    "not_found": "Custom field not found",
+    "chave_duplicate": "An active custom field with this key already exists in the organization",
+    "listed": "Custom fields listed successfully",
+    "found": "Custom field found",
+    "created": "Custom field created successfully",
+    "updated": "Custom field updated successfully",
+    "deleted": "Custom field deleted successfully",
+    "user_values_updated": "User custom field values updated successfully",
+    "unit_values_updated": "Unit custom field values updated successfully"
   },
   "petrvs": {
     "disabled": "Petrvs integration is disabled",

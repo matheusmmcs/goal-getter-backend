@@ -140,8 +140,9 @@ def require_org_gestor(
     if current_user.is_admin:
         return current_user
 
+    target_uuid = UUID(str(org_id)) if isinstance(org_id, str) else org_id
     vinculo = db.query(UsuarioOrganizacao).filter(
-        UsuarioOrganizacao.id_organizacao == org_id,
+        UsuarioOrganizacao.id_organizacao == target_uuid,
         UsuarioOrganizacao.id_usuario == current_user.id,
         UsuarioOrganizacao.inativo == False,
         UsuarioOrganizacao.papel_organizacao == PapelOrganizacaoEnum.GESTOR
@@ -160,8 +161,9 @@ def require_org_member(
     if current_user.is_admin:
         return current_user
 
+    target_uuid = UUID(str(org_id)) if isinstance(org_id, str) else org_id
     vinculo = db.query(UsuarioOrganizacao).filter(
-        UsuarioOrganizacao.id_organizacao == org_id,
+        UsuarioOrganizacao.id_organizacao == target_uuid,
         UsuarioOrganizacao.id_usuario == current_user.id,
         UsuarioOrganizacao.inativo == False,
     ).first()

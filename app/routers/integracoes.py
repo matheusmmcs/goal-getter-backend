@@ -16,6 +16,8 @@ from app.schemas.integracao import (
     TestConnectionRequest,
     InspectSchemaRequest,
     PreviewMappingRequest,
+    PreviewSyncRequest,
+    SyncNowRequest,
 )
 from app.services import integracao_service, schema_inspector_service, integration_engine_service
 
@@ -50,6 +52,26 @@ async def preview_lego_mapping(
 ):
     result = await schema_inspector_service.preview_mapping(data)
     return success_response(data=result, message="integration.mapping_previewed")
+
+
+@router.get("/tarefas-live")
+async def get_live_tasks(
+    id_unidade: UUID | None = Query(None, description="Identificador opcional da unidade"),
+    id_endpoint: UUID | None = Query(None, description="Identificador opcional do endpoint a ser consultado"),
+    funcionalidade: str = Query("REGISTRO_DIARIO", description="Funcionalidade que está solicitando as tarefas"),
+    org: Organizacao = Depends(require_active_organization),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    result = await integration_engine_service.fetch_live_user_tasks(
+        db=db,
+        id_organizacao=org.id,
+        usuario=current_user,
+        id_unidade=id_unidade,
+        id_endpoint=id_endpoint,
+        funcionalidade=funcionalidade,
+    )
+    return success_response(data=result.model_dump(mode='json'), message="integration.live_tasks_fetched")
 
 
 # ==========================================
@@ -203,6 +225,7 @@ def list_integration_history(
 @router.post("/{id}/sync-now")
 async def sync_integration_now(
     id: UUID,
+    payload: SyncNowRequest | None = None,
     org: Organizacao = Depends(require_active_organization),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
@@ -214,7 +237,10 @@ async def sync_integration_now(
         db=db,
         integracao_id=id,
         disparo=OrigemDisparoEnum.MANUAL,
-        id_usuario_executor=current_user.id
+        id_usuario_executor=current_user.id,
+        selected_external_ids=payload.selected_external_ids if payload else None,
+        simulated_user_id=payload.id_usuario_simulacao if payload else None,
+        simulated_unit_id=payload.id_unidade_simulacao if payload else None,
     )
     return success_response(data=[{
         "id_historico": h.id,
@@ -234,6 +260,7 @@ async def sync_integration_now(
 async def sync_endpoint_now(
     id: UUID,
     endpoint_id: UUID,
+    payload: SyncNowRequest | None = None,
     org: Organizacao = Depends(require_active_organization),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
@@ -244,7 +271,10 @@ async def sync_endpoint_now(
         db=db,
         endpoint_id=endpoint_id,
         disparo=OrigemDisparoEnum.MANUAL,
-        id_usuario_executor=current_user.id
+        id_usuario_executor=current_user.id,
+        selected_external_ids=payload.selected_external_ids if payload else None,
+        simulated_user_id=payload.id_usuario_simulacao if payload else None,
+        simulated_unit_id=payload.id_unidade_simulacao if payload else None,
     )
     return success_response(data={
         "id_historico": historico.id,
@@ -263,6 +293,7 @@ async def sync_endpoint_now(
 @router.post("/{id}/preview-sync")
 async def preview_integration_sync(
     id: UUID,
+    payload: PreviewSyncRequest | None = None,
     org: Organizacao = Depends(require_active_organization),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
@@ -272,7 +303,10 @@ async def preview_integration_sync(
 
     preview = await integration_engine_service.preview_integration_sync(
         db=db,
-        integracao_id=id
+        integracao_id=id,
+        simulated_user_id=payload.id_usuario_simulacao if payload else None,
+        simulated_unit_id=payload.id_unidade_simulacao if payload else None,
+        current_user=current_user,
     )
     return success_response(data=preview.model_dump(mode='json'), message="integration.preview_generated")
 
@@ -281,6 +315,7 @@ async def preview_integration_sync(
 async def preview_endpoint_sync(
     id: UUID,
     endpoint_id: UUID,
+    payload: PreviewSyncRequest | None = None,
     org: Organizacao = Depends(require_active_organization),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
@@ -289,7 +324,10 @@ async def preview_endpoint_sync(
 
     preview = await integration_engine_service.preview_endpoint_sync(
         db=db,
-        endpoint_id=endpoint_id
+        endpoint_id=endpoint_id,
+        simulated_user_id=payload.id_usuario_simulacao if payload else None,
+        simulated_unit_id=payload.id_unidade_simulacao if payload else None,
+        current_user=current_user,
     )
     return success_response(data=preview.model_dump(mode='json'), message="integration.preview_generated")
 

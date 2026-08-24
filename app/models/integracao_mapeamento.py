@@ -39,6 +39,12 @@ class IntegracaoMapeamento(Base):
     campo_valor_atual: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     campo_responsavel: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     campo_tipo_anotacao: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    campo_projeto: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    campo_prioridade: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    campo_autor: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    campo_data_atualizacao: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    campo_link_externo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    campos_extras: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     campo_meta_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     campo_meta_titulo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     campo_unidade_origem: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -50,6 +56,7 @@ class IntegracaoMapeamento(Base):
     default_id_unidade: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey('unidades.id'), nullable=True
     )
+    regras_de_para: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     regras_transformacao: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     inativo: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_in_app_timezone)

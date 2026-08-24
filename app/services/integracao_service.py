@@ -63,8 +63,15 @@ def _format_mapeamento_response(map_obj: IntegracaoMapeamento, db: Session) -> I
         campo_meta_id=map_obj.campo_meta_id,
         campo_meta_titulo=map_obj.campo_meta_titulo,
         campo_unidade_origem=map_obj.campo_unidade_origem,
+        campo_projeto=map_obj.campo_projeto,
+        campo_prioridade=map_obj.campo_prioridade,
+        campo_autor=map_obj.campo_autor,
+        campo_data_atualizacao=map_obj.campo_data_atualizacao,
+        campo_link_externo=map_obj.campo_link_externo,
+        campos_extras=map_obj.campos_extras,
         map_unidades_values=map_obj.map_unidades_values,
         map_usuarios_values=map_obj.map_usuarios_values,
+        regras_de_para=map_obj.regras_de_para or [],
         default_id_meta=map_obj.default_id_meta,
         default_meta_titulo=meta_titulo,
         default_id_unidade=map_obj.default_id_unidade,
@@ -124,6 +131,7 @@ def _format_endpoint_response(ep: IntegracaoEndpoint, db: Session) -> Integracao
         usuarios_selecionados=ep.usuarios_selecionados,
         ativo_sincronizacao=ep.ativo_sincronizacao,
         frequencia_cron=ep.frequencia_cron,
+        funcionalidades_habilitadas=ep.funcionalidades_habilitadas or ["GESTAO_INTEGRACOES", "REGISTRO_DIARIO"],
         inativo=ep.inativo,
         created_at=ep.created_at,
         updated_at=ep.updated_at,
@@ -164,6 +172,7 @@ def _format_config_response(cfg: IntegracaoConfig, db: Session) -> IntegracaoCon
         id_organizacao=cfg.id_organizacao,
         nome=cfg.nome,
         descricao=cfg.descricao,
+        status=cfg.status,
         provedor=cfg.provedor,
         url_base=cfg.url_base,
         tipo_autenticacao=cfg.tipo_autenticacao,
@@ -219,6 +228,7 @@ def create_integracao(db: Session, id_organizacao: UUID, data: IntegracaoConfigC
         id_organizacao=id_organizacao,
         nome=data.nome,
         descricao=data.descricao,
+        status=data.status,
         provedor=data.provedor,
         url_base=data.url_base,
         tipo_autenticacao=data.tipo_autenticacao,
@@ -259,6 +269,7 @@ def create_integracao(db: Session, id_organizacao: UUID, data: IntegracaoConfigC
                 usuarios_selecionados=usuarios_raw,
                 ativo_sincronizacao=ep_data.ativo_sincronizacao,
                 frequencia_cron=ep_data.frequencia_cron,
+                funcionalidades_habilitadas=ep_data.funcionalidades_habilitadas or ["GESTAO_INTEGRACOES", "REGISTRO_DIARIO"],
                 inativo=False,
                 ativo=True,
             )
@@ -291,8 +302,15 @@ def create_integracao(db: Session, id_organizacao: UUID, data: IntegracaoConfigC
                     campo_meta_id=m.campo_meta_id,
                     campo_meta_titulo=m.campo_meta_titulo,
                     campo_unidade_origem=m.campo_unidade_origem,
+                    campo_projeto=m.campo_projeto,
+                    campo_prioridade=m.campo_prioridade,
+                    campo_autor=m.campo_autor,
+                    campo_data_atualizacao=m.campo_data_atualizacao,
+                    campo_link_externo=m.campo_link_externo,
+                    campos_extras=m.campos_extras,
                     map_unidades_values=[u.model_dump(mode='json') for u in m.map_unidades_values] if m.map_unidades_values else None,
                     map_usuarios_values=[usr.model_dump(mode='json') for usr in m.map_usuarios_values] if m.map_usuarios_values else None,
+                    regras_de_para=[r.model_dump(mode='json') for r in m.regras_de_para] if m.regras_de_para else [],
                     default_id_meta=m.default_id_meta,
                     default_id_unidade=m.default_id_unidade,
                     regras_transformacao=m.regras_transformacao,
@@ -320,6 +338,8 @@ def update_integracao(db: Session, id_organizacao: UUID, integracao_id: UUID, da
         cfg.nome = data.nome
     if data.descricao is not None:
         cfg.descricao = data.descricao
+    if data.status is not None:
+        cfg.status = data.status
     if data.provedor is not None:
         cfg.provedor = data.provedor
     if data.url_base is not None:
@@ -344,6 +364,86 @@ def update_integracao(db: Session, id_organizacao: UUID, integracao_id: UUID, da
         cfg.ativo_sincronizacao = data.ativo_sincronizacao
     if data.frequencia_cron is not None:
         cfg.frequencia_cron = data.frequencia_cron
+
+    # Update or recreate endpoints if provided
+    if data.endpoints is not None:
+        # Soft delete existing active endpoints and their mappings
+        for existing_ep in cfg.endpoints:
+            if not existing_ep.inativo:
+                existing_ep.inativo = True
+                if existing_ep.mapeamento and not existing_ep.mapeamento.inativo:
+                    existing_ep.mapeamento.inativo = True
+
+        # Create new endpoints with their mappings
+        for ep_data in data.endpoints:
+            params_raw = [p.model_dump(mode='json') for p in ep_data.parametros_config] if ep_data.parametros_config else None
+            unidades_raw = [str(u) for u in ep_data.unidades_selecionadas] if ep_data.unidades_selecionadas else None
+            usuarios_raw = [str(usr) for usr in ep_data.usuarios_selecionados] if ep_data.usuarios_selecionados else None
+            new_ep = IntegracaoEndpoint(
+                id_integracao_config=cfg.id,
+                nome=ep_data.nome,
+                tipo_integracao=ep_data.tipo_integracao,
+                path=ep_data.path,
+                metodo_http=ep_data.metodo_http,
+                modo_execucao=ep_data.modo_execucao,
+                parametros_config=params_raw,
+                headers_custom=ep_data.headers_custom,
+                corpo_requisicao=ep_data.corpo_requisicao,
+                escopo_unidades=ep_data.escopo_unidades or 'TODAS',
+                unidades_selecionadas=unidades_raw,
+                escopo_usuarios=ep_data.escopo_usuarios or 'TODOS',
+                usuarios_selecionados=usuarios_raw,
+                ativo_sincronizacao=ep_data.ativo_sincronizacao,
+                frequencia_cron=ep_data.frequencia_cron,
+                funcionalidades_habilitadas=ep_data.funcionalidades_habilitadas or ["GESTAO_INTEGRACOES", "REGISTRO_DIARIO"],
+                inativo=False,
+                ativo=True,
+            )
+            db.add(new_ep)
+            db.flush()
+
+            if ep_data.mapeamento:
+                m = ep_data.mapeamento
+                map_obj = IntegracaoMapeamento(
+                    id_integracao_endpoint=new_ep.id,
+                    items_root_path=m.items_root_path,
+                    external_id_mode=m.external_id_mode,
+                    external_id_path=m.external_id_path,
+                    external_id_composite_paths=m.external_id_composite_paths,
+                    external_id_composite_template=m.external_id_composite_template,
+                    campo_titulo=m.campo_titulo,
+                    campo_descricao=m.campo_descricao,
+                    campo_codigo=m.campo_codigo,
+                    campo_data_inicio=m.campo_data_inicio,
+                    campo_data_fim=m.campo_data_fim,
+                    campo_data_conclusao=m.campo_data_conclusao,
+                    campo_status=m.campo_status,
+                    map_status_values=m.map_status_values,
+                    campo_progresso=m.campo_progresso,
+                    campo_valor_inicial=m.campo_valor_inicial,
+                    campo_valor_pretendido=m.campo_valor_pretendido,
+                    campo_valor_atual=m.campo_valor_atual,
+                    campo_responsavel=m.campo_responsavel,
+                    campo_tipo_anotacao=m.campo_tipo_anotacao,
+                    campo_meta_id=m.campo_meta_id,
+                    campo_meta_titulo=m.campo_meta_titulo,
+                    campo_unidade_origem=m.campo_unidade_origem,
+                    campo_projeto=m.campo_projeto,
+                    campo_prioridade=m.campo_prioridade,
+                    campo_autor=m.campo_autor,
+                    campo_data_atualizacao=m.campo_data_atualizacao,
+                    campo_link_externo=m.campo_link_externo,
+                    campos_extras=m.campos_extras,
+                    map_unidades_values=[u.model_dump(mode='json') for u in m.map_unidades_values] if m.map_unidades_values else None,
+                    map_usuarios_values=[usr.model_dump(mode='json') for usr in m.map_usuarios_values] if m.map_usuarios_values else None,
+                    regras_de_para=[r.model_dump(mode='json') for r in m.regras_de_para] if m.regras_de_para else [],
+                    default_id_meta=m.default_id_meta,
+                    default_id_unidade=m.default_id_unidade,
+                    regras_transformacao=m.regras_transformacao,
+                    inativo=False,
+                    ativo=True,
+                )
+                db.add(map_obj)
 
     cfg.updated_at = now_in_app_timezone()
     db.commit()
@@ -437,6 +537,7 @@ def create_endpoint(db: Session, id_organizacao: UUID, integracao_id: UUID, data
         corpo_requisicao=data.corpo_requisicao,
         ativo_sincronizacao=data.ativo_sincronizacao,
         frequencia_cron=data.frequencia_cron,
+        funcionalidades_habilitadas=data.funcionalidades_habilitadas or ["GESTAO_INTEGRACOES", "REGISTRO_DIARIO"],
         inativo=False,
         ativo=True,
     )
@@ -469,8 +570,15 @@ def create_endpoint(db: Session, id_organizacao: UUID, integracao_id: UUID, data
             campo_meta_id=m.campo_meta_id,
             campo_meta_titulo=m.campo_meta_titulo,
             campo_unidade_origem=m.campo_unidade_origem,
+            campo_projeto=m.campo_projeto,
+            campo_prioridade=m.campo_prioridade,
+            campo_autor=m.campo_autor,
+            campo_data_atualizacao=m.campo_data_atualizacao,
+            campo_link_externo=m.campo_link_externo,
+            campos_extras=m.campos_extras,
             map_unidades_values=[u.model_dump(mode='json') for u in m.map_unidades_values] if m.map_unidades_values else None,
             map_usuarios_values=[usr.model_dump(mode='json') for usr in m.map_usuarios_values] if m.map_usuarios_values else None,
+            regras_de_para=[r.model_dump(mode='json') for r in m.regras_de_para] if m.regras_de_para else [],
             default_id_meta=m.default_id_meta,
             default_id_unidade=m.default_id_unidade,
             regras_transformacao=m.regras_transformacao,
@@ -525,6 +633,8 @@ def update_endpoint(db: Session, id_organizacao: UUID, endpoint_id: UUID, data: 
         ep.ativo_sincronizacao = data.ativo_sincronizacao
     if data.frequencia_cron is not None:
         ep.frequencia_cron = data.frequencia_cron
+    if data.funcionalidades_habilitadas is not None:
+        ep.funcionalidades_habilitadas = data.funcionalidades_habilitadas
 
     # Update mapping
     if data.mapeamento:
@@ -578,10 +688,24 @@ def update_endpoint(db: Session, id_organizacao: UUID, endpoint_id: UUID, data: 
             map_obj.campo_meta_titulo = m.campo_meta_titulo
         if m.campo_unidade_origem is not None:
             map_obj.campo_unidade_origem = m.campo_unidade_origem
+        if m.campo_projeto is not None:
+            map_obj.campo_projeto = m.campo_projeto
+        if m.campo_prioridade is not None:
+            map_obj.campo_prioridade = m.campo_prioridade
+        if m.campo_autor is not None:
+            map_obj.campo_autor = m.campo_autor
+        if m.campo_data_atualizacao is not None:
+            map_obj.campo_data_atualizacao = m.campo_data_atualizacao
+        if m.campo_link_externo is not None:
+            map_obj.campo_link_externo = m.campo_link_externo
+        if m.campos_extras is not None:
+            map_obj.campos_extras = m.campos_extras
         if m.map_unidades_values is not None:
             map_obj.map_unidades_values = [u.model_dump(mode='json') for u in m.map_unidades_values]
         if m.map_usuarios_values is not None:
             map_obj.map_usuarios_values = [usr.model_dump(mode='json') for usr in m.map_usuarios_values]
+        if m.regras_de_para is not None:
+            map_obj.regras_de_para = [r.model_dump(mode='json') for r in m.regras_de_para]
 
         if m.default_id_meta is not None:
             map_obj.default_id_meta = m.default_id_meta

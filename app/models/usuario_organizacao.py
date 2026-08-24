@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, Enum as SQLEnum, UniqueConstraint
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, Enum as SQLEnum, UniqueConstraint, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -27,6 +27,7 @@ class UsuarioOrganizacao(Base):
         default=PapelOrganizacaoEnum.MEMBRO,
         nullable=False
     )
+    campos_customizados: Mapped[Optional[dict]] = mapped_column(JSON, default=dict, nullable=True)
     inativo: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_in_app_timezone)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

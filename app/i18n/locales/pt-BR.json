@@ -167,7 +167,19 @@
     "mapping_previewed": "Pré-visualização do mapeamento gerada",
     "mapping_not_configured": "O mapeamento dos campos da integração não foi configurado",
     "preview_generated": "Pré-visualização da sincronização gerada com sucesso",
-    "sync_completed": "Sincronização executada com sucesso"
+    "sync_completed": "Sincronização executada com sucesso",
+    "live_tasks_fetched": "Tarefas sob demanda consultadas com sucesso"
+  },
+  "campo_customizado": {
+    "not_found": "Campo customizado não encontrado",
+    "chave_duplicate": "Já existe um campo customizado ativo com esta chave na organização",
+    "listed": "Campos customizados listados com sucesso",
+    "found": "Campo customizado encontrado",
+    "created": "Campo customizado criado com sucesso",
+    "updated": "Campo customizado atualizado com sucesso",
+    "deleted": "Campo customizado excluído com sucesso",
+    "user_values_updated": "Valores dos campos customizados do usuário atualizados com sucesso",
+    "unit_values_updated": "Valores dos campos customizados da unidade atualizados com sucesso"
   },
   "petrvs": {
     "disabled": "Integração com o Petrvs está desativada",

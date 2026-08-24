@@ -68,6 +68,28 @@ def resolve_template_string(template_str: str, context: dict[str, Any]) -> str:
         "mes": f"{now.month:02d}",
     }
     merged = {**default_context, **context}
+    
+    # Expande automaticamente apelidos para tags de campos customizados (ex: usuario_xpto <-> xpto)
+    extra_aliases = {}
+    for k, v in merged.items():
+        if v is not None:
+            if k.startswith("usuario_"):
+                short_k = k[len("usuario_"):]
+                if short_k not in merged:
+                    extra_aliases[short_k] = v
+            elif k.startswith("unidade_"):
+                short_k = k[len("unidade_"):]
+                if short_k not in merged:
+                    extra_aliases[short_k] = v
+            else:
+                usr_k = f"usuario_{k}"
+                if usr_k not in merged:
+                    extra_aliases[usr_k] = v
+                und_k = f"unidade_{k}"
+                if und_k not in merged:
+                    extra_aliases[und_k] = v
+    merged.update(extra_aliases)
+
     result = template_str
     for k, v in merged.items():
         if v is not None:
@@ -449,7 +471,7 @@ def build_schema_tree(payload: Any, current_key: str = "root", current_path: str
 
 
 def extract_flat_paths(payload: Any, current_path: str = "", depth: int = 0) -> list[str]:
-    """Extracts a flat list of dot-separated paths for autocomplete in Lego mapper."""
+    """Extracts a flat list of dot-separated paths for autocomplete in Lego mapper, traversing objects and arrays."""
     if depth > 6 or payload is None:
         return []
 
@@ -460,10 +482,18 @@ def extract_flat_paths(payload: Any, current_path: str = "", depth: int = 0) -> 
             paths.append(p)
             if isinstance(v, dict):
                 paths.extend(extract_flat_paths(v, p, depth + 1))
-            elif isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict):
-                paths.extend(extract_flat_paths(v[0], p, depth + 1))
-    elif isinstance(payload, list) and len(payload) > 0 and isinstance(payload[0], dict):
-        paths.extend(extract_flat_paths(payload[0], current_path, depth + 1))
+            elif isinstance(v, list) and len(v) > 0:
+                for elem in v[:5]:
+                    if isinstance(elem, dict):
+                        paths.extend(extract_flat_paths(elem, p, depth + 1))
+                    elif isinstance(elem, list):
+                        paths.extend(extract_flat_paths(elem, p, depth + 1))
+    elif isinstance(payload, list) and len(payload) > 0:
+        for elem in payload[:5]:
+            if isinstance(elem, dict):
+                paths.extend(extract_flat_paths(elem, current_path, depth + 1))
+            elif isinstance(elem, list):
+                paths.extend(extract_flat_paths(elem, current_path, depth + 1))
 
     return list(dict.fromkeys(paths))
 
@@ -533,49 +563,98 @@ def extract_items_by_path(payload: Any, root_path: str) -> list[Any]:
     return []
 
 
+def merge_sample_items(items: list[Any]) -> dict[str, Any]:
+    """Merges keys and structures from up to 10 sample items to provide a comprehensive schema."""
+    merged: dict[str, Any] = {}
+    for item in items[:10]:
+        if isinstance(item, dict):
+            for k, v in item.items():
+                if k not in merged or merged[k] is None:
+                    merged[k] = v
+                elif isinstance(merged[k], dict) and isinstance(v, dict):
+                    merged[k] = {**merged[k], **v}
+                elif isinstance(merged[k], list) and isinstance(v, list):
+                    if len(merged[k]) == 0 and len(v) > 0:
+                        merged[k] = v
+                    elif len(merged[k]) > 0 and len(v) > 0 and isinstance(merged[k][0], dict) and isinstance(v[0], dict):
+                        merged[k][0] = {**merged[k][0], **v[0]}
+    return merged
+
+
 async def inspect_schema(req: InspectSchemaRequest) -> InspectSchemaResponse:
     """Inspects external endpoint or raw payload and returns tree and detected arrays."""
     latency_ms = 0.0
     payload = req.raw_sample
 
     if payload is None:
-        try:
-            status_code, latency_ms, data, _, _ = await execute_integrated_request(
-                url_base=req.url_base,
-                path=req.path,
-                metodo_http=req.metodo_http,
-                tipo_autenticacao=req.tipo_autenticacao,
-                auth_endpoint_path=req.auth_endpoint_path,
-                auth_metodo_http=req.auth_metodo_http,
-                auth_headers=req.auth_headers,
-                auth_payload=req.auth_payload,
-                auth_token_path=req.auth_token_path,
-                auth_static_config=req.auth_static_config,
-                headers_padrao=req.headers_padrao,
-                headers_custom=req.headers_custom,
-                parametros_config=req.parametros_config,
-                corpo_requisicao=req.corpo_requisicao,
-                context=req.context,
-            )
-            if not (200 <= status_code < 300):
-                return InspectSchemaResponse(
-                    success=False,
-                    latency_ms=latency_ms,
-                    detected_arrays=[],
-                    schema_tree=[],
-                    discovered_fields=[],
-                    sample_payload={"error": f"Endpoint retornou status {status_code}", "body": str(data)[:500]}
+        contexts_to_run = req.iteration_contexts if req.iteration_contexts and len(req.iteration_contexts) > 0 else [req.context]
+        all_payloads = []
+        errors = []
+        latencies = []
+
+        for c_idx, ctx in enumerate(contexts_to_run):
+            try:
+                status_code, lat, data, _, _ = await execute_integrated_request(
+                    url_base=req.url_base,
+                    path=req.path,
+                    metodo_http=req.metodo_http,
+                    tipo_autenticacao=req.tipo_autenticacao,
+                    auth_endpoint_path=req.auth_endpoint_path,
+                    auth_metodo_http=req.auth_metodo_http,
+                    auth_headers=req.auth_headers,
+                    auth_payload=req.auth_payload,
+                    auth_token_path=req.auth_token_path,
+                    auth_static_config=req.auth_static_config,
+                    headers_padrao=req.headers_padrao,
+                    headers_custom=req.headers_custom,
+                    parametros_config=req.parametros_config,
+                    corpo_requisicao=req.corpo_requisicao,
+                    context=ctx,
                 )
-            payload = data
-        except Exception as e:
+                latencies.append(lat)
+                if 200 <= status_code < 300:
+                    if data is not None:
+                        all_payloads.append(data)
+                else:
+                    errors.append(f"Contexto #{c_idx+1} retornou status {status_code}: {str(data)[:150]}")
+            except Exception as e:
+                errors.append(f"Contexto #{c_idx+1} falhou: {str(e)}")
+
+        if latencies:
+            latency_ms = sum(latencies) / len(latencies)
+
+        if not all_payloads:
+            error_detail = "; ".join(errors) if errors else "Nenhum dado retornado pelas requisições."
             return InspectSchemaResponse(
                 success=False,
-                latency_ms=0.0,
+                latency_ms=latency_ms,
                 detected_arrays=[],
                 schema_tree=[],
                 discovered_fields=[],
-                sample_payload={"error": f"Erro na requisição: {str(e)}"}
+                sample_payload={"error": error_detail}
             )
+
+        if len(all_payloads) == 1:
+            payload = all_payloads[0]
+        else:
+            if all(isinstance(p, list) for p in all_payloads):
+                combined = []
+                for p in all_payloads:
+                    combined.extend(p)
+                payload = combined
+            elif all(isinstance(p, dict) for p in all_payloads):
+                merged_dict: dict[str, Any] = {}
+                for p in all_payloads:
+                    for k, v in p.items():
+                        if k not in merged_dict:
+                            merged_dict[k] = v
+                        elif isinstance(merged_dict[k], list) and isinstance(v, list):
+                            merged_dict[k] = merged_dict[k] + v
+                        elif isinstance(merged_dict[k], dict) and isinstance(v, dict):
+                            merged_dict[k] = {**merged_dict[k], **v}
+                payload = merged_dict
+            else:
+                payload = all_payloads[0]
 
     detected_arrays = detect_candidate_arrays(payload)
     if not detected_arrays and isinstance(payload, list):
@@ -585,8 +664,8 @@ async def inspect_schema(req: InspectSchemaRequest) -> InspectSchemaResponse:
     if detected_arrays:
         first_array_path = detected_arrays[0]
         extracted = extract_items_by_path(payload, first_array_path)
-        if extracted and len(extracted) > 0 and isinstance(extracted[0], dict):
-            sample_target = extracted[0]
+        if extracted and len(extracted) > 0:
+            sample_target = merge_sample_items(extracted) if any(isinstance(x, dict) for x in extracted) else extracted[0]
 
     schema_tree = build_schema_tree(sample_target)
     discovered_fields = extract_flat_paths(sample_target)
@@ -678,83 +757,70 @@ def build_composite_key(item: dict[str, Any], template: str | None, paths: list[
             res = res.replace(f"{{{clean_p}}}", val)
             res = res.replace(f"{{{p}}}", val)
         return res
-    return "#".join(extracted_values)
+def resolve_item_url_template(template_or_field: str | None, item: dict[str, Any]) -> str | None:
+    """
+    Resolves external link either from a single field path (e.g. 'html_url', 'url')
+    or by interpolating a parameterized template string with item fields
+    (e.g. 'https://redminedes.ufpi.br/{project.id}/{id}/view').
+    """
+    if not template_or_field or not isinstance(item, dict):
+        return None
+    cleaned = str(template_or_field).strip()
+    if not cleaned:
+        return None
+
+    if "{" in cleaned and "}" in cleaned:
+        tokens = re.findall(r"\{([^}]+)\}", cleaned)
+        res = cleaned
+        for token in tokens:
+            val = extract_field_value(item, token.strip())
+            val_str = str(val) if val is not None else ""
+            res = res.replace(f"{{{token}}}", val_str)
+        return res
+    else:
+        val = extract_field_value(item, cleaned)
+        return str(val).strip() if val is not None else None
 
 
 async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
     """Executes live simulation of Lego mapping transformation for RECEBER_METAS, RECEBER_ENTREGAS or RECEBER_TAREFAS."""
-    raw_data = req.raw_data
-
-    if raw_data is None:
-        if not req.url_base:
-            return PreviewMappingResponse(
-                success=False,
-                tipo_integracao=req.tipo_integracao,
-                total_raw_items=0,
-                preview_items=[],
-                warnings_or_errors=["Informe 'raw_data' ou 'url_base' para simular a transformação."]
-            )
-        try:
-            status_code, _, data, _, _ = await execute_integrated_request(
-                url_base=req.url_base,
-                path=req.path,
-                metodo_http=req.metodo_http,
-                tipo_autenticacao=req.tipo_autenticacao,
-                auth_endpoint_path=req.auth_endpoint_path,
-                auth_metodo_http=req.auth_metodo_http,
-                auth_headers=req.auth_headers,
-                auth_payload=req.auth_payload,
-                auth_token_path=req.auth_token_path,
-                auth_static_config=req.auth_static_config,
-                headers_padrao=req.headers_padrao,
-                headers_custom=req.headers_custom,
-                parametros_config=req.parametros_config,
-                corpo_requisicao=req.corpo_requisicao,
-                context=req.context,
-            )
-            if not (200 <= status_code < 300):
-                return PreviewMappingResponse(
-                    success=False,
-                    tipo_integracao=req.tipo_integracao,
-                    total_raw_items=0,
-                    preview_items=[],
-                    warnings_or_errors=[f"Endpoint de consulta retornou status HTTP {status_code}: {str(data)[:200]}"]
-                )
-            raw_data = data
-        except Exception as e:
-            return PreviewMappingResponse(
-                success=False,
-                tipo_integracao=req.tipo_integracao,
-                total_raw_items=0,
-                preview_items=[],
-                warnings_or_errors=[f"Erro ao executar requisição: {str(e)}"]
-            )
-
     map_cfg = req.mapeamento
-    items = extract_items_by_path(raw_data, map_cfg.items_root_path)
+    # Build De-Para lookups from unified regras_de_para or legacy lists
+    status_map_dict: dict[str, str] = {}
+    unit_map_dict: dict[str, str] = {}
+    user_map_dict: dict[str, str] = {}
 
-    if not items:
-        return PreviewMappingResponse(
-            success=True,
-            tipo_integracao=req.tipo_integracao,
-            total_raw_items=0,
-            preview_items=[],
-            warnings_or_errors=[f"Nenhum item encontrado no caminho '{map_cfg.items_root_path}'."]
-        )
+    if map_cfg.regras_de_para:
+        for regra in map_cfg.regras_de_para:
+            regra_tipo = regra.tipo.value if hasattr(regra.tipo, "value") else str(regra.tipo)
+            if regra_tipo == "STATUS":
+                for v in (regra.valores or []):
+                    status_map_dict[str(v.de).strip()] = v.para
+            elif regra_tipo == "UNIDADE":
+                for v in (regra.valores or []):
+                    unit_map_dict[str(v.de).strip().upper()] = v.rotulo_externo or v.para
+            elif regra_tipo == "USUARIO":
+                for v in (regra.valores or []):
+                    user_map_dict[str(v.de).strip().lower()] = v.rotulo_externo or v.para
 
-    # Prepare De-Para dictionaries
-    unit_map_dict = {}
-    if map_cfg.map_unidades_values:
+    # Fallback to legacy fields
+    if not status_map_dict and map_cfg.map_status_values:
+        status_map_dict = map_cfg.map_status_values
+    if not unit_map_dict and map_cfg.map_unidades_values:
         for u in map_cfg.map_unidades_values:
             unit_map_dict[str(u.codigo_externo).strip().upper()] = u.nome_externo or str(u.id_unidade)
+    if not user_map_dict and map_cfg.map_usuarios_values:
+        for usr in map_cfg.map_usuarios_values:
+            user_map_dict[str(usr.identificador_externo).strip().lower()] = usr.nome_externo or str(usr.id_usuario)
 
     transformed: list[TransformedItemPreview] = []
+    transformed_dict: dict[str, TransformedItemPreview] = {}
     warnings: list[str] = []
 
-    for idx, item in enumerate(items[:20]):
+    def transform_single_item(item: dict[str, Any], idx: int, ctx_info: dict[str, Any] | None = None) -> TransformedItemPreview | None:
         if not isinstance(item, dict):
             warnings.append(f"Item #{idx} não é um objeto JSON válido (ignorado).")
-            continue
+            return None
 
         # External ID
         if map_cfg.external_id_mode == "COMPOSITE":
@@ -775,9 +841,9 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
         dt_conc = parse_date_safe(extract_field_value(item, map_cfg.campo_data_conclusao))
 
         # Status & De-Para
-        raw_status = str(extract_field_value(item, map_cfg.campo_status) or "")
-        map_status = map_cfg.map_status_values or {}
-        mapped_status = map_status.get(raw_status, raw_status) if raw_status else "NAO_INICIADA"
+        raw_status = str(extract_field_value(item, map_cfg.campo_status) or "").strip()
+        default_status = "PLANEJADA" if req.tipo_integracao == TipoIntegracaoEnum.RECEBER_METAS else "NAO_INICIADA"
+        mapped_status = status_map_dict.get(raw_status, raw_status) if raw_status else default_status
 
         # Values & Progress
         progresso = parse_percent_safe(extract_field_value(item, map_cfg.campo_progresso))
@@ -787,7 +853,11 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
 
         # Responsible & Units
         responsavel = extract_field_value(item, map_cfg.campo_responsavel)
-        responsavel_id = str(responsavel) if responsavel is not None else None
+        responsavel_id = str(responsavel).strip() if responsavel is not None else None
+        if responsavel_id and responsavel_id.lower() in user_map_dict:
+            responsavel_id = user_map_dict[responsavel_id.lower()]
+        elif responsavel_id is None and ctx_info and (ctx_info.get("usuario_nome") or ctx_info.get("usuario_login")):
+            responsavel_id = ctx_info.get("usuario_nome") or ctx_info.get("usuario_login")
 
         unidade_ext = extract_field_value(item, map_cfg.campo_unidade_origem)
         unidade_id_str = str(unidade_ext).strip() if unidade_ext is not None else None
@@ -795,9 +865,24 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
 
         meta_id = extract_field_value(item, map_cfg.campo_meta_id)
         meta_id_str = str(meta_id) if meta_id is not None else None
-        tipo_anotacao = str(extract_field_value(item, map_cfg.campo_tipo_anotacao) or "TODAY")
+        tipo_anotacao = str(extract_field_value(item, map_cfg.campo_tipo_anotacao) or "TODAY") if map_cfg.campo_tipo_anotacao else None
 
-        transformed.append(TransformedItemPreview(
+        # Task specific canonical fields
+        dt_atualizacao = parse_date_safe(extract_field_value(item, map_cfg.campo_data_atualizacao)) if getattr(map_cfg, "campo_data_atualizacao", None) else None
+        projeto = str(extract_field_value(item, map_cfg.campo_projeto)) if getattr(map_cfg, "campo_projeto", None) and extract_field_value(item, map_cfg.campo_projeto) is not None else None
+        prioridade = str(extract_field_value(item, map_cfg.campo_prioridade)) if getattr(map_cfg, "campo_prioridade", None) and extract_field_value(item, map_cfg.campo_prioridade) is not None else None
+        autor = str(extract_field_value(item, map_cfg.campo_autor)) if getattr(map_cfg, "campo_autor", None) and extract_field_value(item, map_cfg.campo_autor) is not None else None
+        link_externo = resolve_item_url_template(getattr(map_cfg, "campo_link_externo", None), item)
+
+        extras_dict: dict[str, Any] = {}
+        if getattr(map_cfg, "campos_extras", None):
+            for extra_item in map_cfg.campos_extras:
+                if isinstance(extra_item, dict) and "chave" in extra_item and "caminho" in extra_item:
+                    val = extract_field_value(item, extra_item["caminho"])
+                    if val is not None:
+                        extras_dict[extra_item["chave"]] = val
+
+        return TransformedItemPreview(
             tipo_integracao=req.tipo_integracao,
             external_id=ext_id,
             titulo=titulo,
@@ -806,6 +891,7 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
             data_inicio=dt_ini,
             data_fim=dt_fim,
             data_conclusao=dt_conc,
+            data_atualizacao=dt_atualizacao,
             status=mapped_status,
             progresso_percentual=progresso,
             valor_inicial=val_ini,
@@ -816,13 +902,75 @@ async def preview_mapping(req: PreviewMappingRequest) -> PreviewMappingResponse:
             unidade_nome_mapeado=unidade_mapeada,
             meta_identificador=meta_id_str,
             tipo_anotacao=tipo_anotacao,
+            projeto=projeto,
+            prioridade=prioridade,
+            autor=autor,
+            link_externo=link_externo,
+            campos_extras=extras_dict if extras_dict else None,
             raw_item=item,
-        ))
+        )
+
+    contexts_to_run = req.iteration_contexts if req.iteration_contexts and len(req.iteration_contexts) > 0 else [req.context]
+
+    total_raw = 0
+    for c_idx, ctx in enumerate(contexts_to_run):
+        raw_data = req.raw_data if (c_idx == 0 and req.raw_data is not None) else None
+        if raw_data is None:
+            if not req.url_base:
+                if len(contexts_to_run) == 1:
+                    return PreviewMappingResponse(
+                        success=False,
+                        tipo_integracao=req.tipo_integracao,
+                        total_raw_items=0,
+                        preview_items=[],
+                        warnings_or_errors=["Informe 'raw_data' ou 'url_base' para simular a transformação."]
+                    )
+                continue
+            try:
+                status_code, _, data, _, _ = await execute_integrated_request(
+                    url_base=req.url_base,
+                    path=req.path,
+                    metodo_http=req.metodo_http,
+                    tipo_autenticacao=req.tipo_autenticacao,
+                    auth_endpoint_path=req.auth_endpoint_path,
+                    auth_metodo_http=req.auth_metodo_http,
+                    auth_headers=req.auth_headers,
+                    auth_payload=req.auth_payload,
+                    auth_token_path=req.auth_token_path,
+                    auth_static_config=req.auth_static_config,
+                    headers_padrao=req.headers_padrao,
+                    headers_custom=req.headers_custom,
+                    parametros_config=req.parametros_config,
+                    corpo_requisicao=req.corpo_requisicao,
+                    context=ctx,
+                )
+                if not (200 <= status_code < 300):
+                    warnings.append(f"Contexto #{c_idx+1} retornou status HTTP {status_code}: {str(data)[:150]}")
+                    continue
+                raw_data = data
+            except Exception as e:
+                warnings.append(f"Contexto #{c_idx+1} falhou: {str(e)}")
+                continue
+
+        items = extract_items_by_path(raw_data, map_cfg.items_root_path)
+        if isinstance(items, list):
+            total_raw += len(items)
+            for i_idx, item in enumerate(items[:50]):
+                t_item = transform_single_item(item, total_raw, ctx)
+                if t_item:
+                    ext_key = str(t_item.external_id or f"item-{len(transformed)}")
+                    if ext_key in transformed_dict:
+                        transformed_dict[ext_key].quantidade_registros += 1
+                    else:
+                        t_item.quantidade_registros = 1
+                        transformed_dict[ext_key] = t_item
+
+    transformed = list(transformed_dict.values())
 
     return PreviewMappingResponse(
         success=True,
         tipo_integracao=req.tipo_integracao,
-        total_raw_items=len(items),
+        total_raw_items=total_raw if total_raw > 0 else len(transformed),
         preview_items=transformed,
         warnings_or_errors=warnings
     )

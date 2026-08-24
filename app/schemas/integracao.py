@@ -1,3 +1,4 @@
+import enum
 from datetime import datetime, date
 from uuid import UUID
 from typing import Any
@@ -14,6 +15,7 @@ from app.models.enums import (
     OrigemDisparoEnum,
     EntregaStatusEnum,
     MetaStatusEnum,
+    StatusIntegracaoEnum,
 )
 
 
@@ -28,6 +30,39 @@ class ParametroConfigSchema(BaseModel):
     valor_template: str = Field(..., description="Valor fixo ou template com tags ex: '{ano_atual}', '{codigo_unidade}'")
     obrigatorio: bool = Field(True, description="Se true, a ausência do valor impede o disparo")
     descricao: str | None = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def resolve_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "nome" not in data and "nome_parametro" in data:
+                data["nome"] = data["nome_parametro"]
+            elif "nome" not in data and "chave" in data:
+                data["nome"] = data["chave"]
+            if "valor_template" not in data and "valor" in data:
+                data["valor_template"] = str(data["valor"])
+        return data
+
+
+class TipoDeParaEnum(str, enum.Enum):
+    STATUS = 'STATUS'
+    UNIDADE = 'UNIDADE'
+    USUARIO = 'USUARIO'
+    GENERICO = 'GENERICO'
+
+
+class DeParaItemValor(BaseModel):
+    de: str = Field(..., description="Valor no sistema externo (ex: 'Em andamento', '102.01', '77')")
+    para: str = Field(..., description="Correspondência interna no Goal Getter (Status enum, UUID da Unidade ou UUID do Usuário)")
+    rotulo_externo: str | None = Field(None, description="Descrição ou rótulo auxiliar opcional (ex: 'Superintendência de TI', 'Matheus')")
+
+
+class DeParaRegra(BaseModel):
+    id: str | None = Field(None, description="Identificador único temporário/UI da regra")
+    tipo: TipoDeParaEnum = Field(..., description="Tipo de De-Para: STATUS, UNIDADE ou USUARIO")
+    campo_alvo: str = Field(..., description="Campo canônico do modelo que passará pela transformação (ex: 'campo_status', 'campo_unidade_origem', 'campo_responsavel')")
+    nome_regra: str | None = Field(None, description="Nome ou rótulo descritivo da regra de De-Para")
+    valores: list[DeParaItemValor] = Field(default_factory=list, description="Tabela de mapeamentos de/para")
 
 
 class DeParaUnidadeItem(BaseModel):
@@ -68,11 +103,18 @@ class IntegracaoMapeamentoBase(BaseModel):
     campo_valor_atual: str | None = None
     campo_responsavel: str | None = Field(None, description="Identificador do responsável (CPF, e-mail ou login)")
     campo_tipo_anotacao: str | None = Field(None, description="Campo que indica tipo de tarefa (TODAY, YESTERDAY, IMPEDIMENT)")
+    campo_projeto: str | None = Field(None, description="Nome ou ID do projeto da tarefa")
+    campo_prioridade: str | None = Field(None, description="Prioridade da tarefa")
+    campo_autor: str | None = Field(None, description="Autor / Criador da tarefa")
+    campo_data_atualizacao: str | None = Field(None, description="Data de alteração / atualização da tarefa")
+    campo_link_externo: str | None = Field(None, description="Caminho do link externo para acesso direto à meta, entrega ou tarefa")
+    campos_extras: list[dict[str, str]] | None = Field(None, description="Lista de campos canônicos extras mapeados [{chave, caminho}]")
     campo_meta_id: str | None = None
     campo_meta_titulo: str | None = None
     campo_unidade_origem: str | None = Field(None, description="Nó do JSON que identifica a unidade externa")
     map_unidades_values: list[DeParaUnidadeItem] | None = None
     map_usuarios_values: list[DeParaUsuarioItem] | None = None
+    regras_de_para: list[DeParaRegra] | None = Field(default_factory=list, description="Lista unificada de regras e tabelas de De-Para")
     default_id_meta: UUID | None = None
     default_id_unidade: UUID | None = None
     regras_transformacao: dict[str, Any] | None = None
@@ -102,11 +144,18 @@ class IntegracaoMapeamentoUpdate(BaseModel):
     campo_valor_atual: str | None = None
     campo_responsavel: str | None = None
     campo_tipo_anotacao: str | None = None
+    campo_projeto: str | None = None
+    campo_prioridade: str | None = None
+    campo_autor: str | None = None
+    campo_data_atualizacao: str | None = None
+    campo_link_externo: str | None = None
+    campos_extras: list[dict[str, str]] | None = None
     campo_meta_id: str | None = None
     campo_meta_titulo: str | None = None
     campo_unidade_origem: str | None = None
     map_unidades_values: list[DeParaUnidadeItem] | None = None
     map_usuarios_values: list[DeParaUsuarioItem] | None = None
+    regras_de_para: list[DeParaRegra] | None = None
     default_id_meta: UUID | None = None
     default_id_unidade: UUID | None = None
     regras_transformacao: dict[str, Any] | None = None
@@ -144,6 +193,10 @@ class IntegracaoEndpointBase(BaseModel):
     usuarios_selecionados: list[UUID] | None = None
     ativo_sincronizacao: bool = True
     frequencia_cron: str | None = None
+    funcionalidades_habilitadas: list[str] | None = Field(
+        default_factory=lambda: ["GESTAO_INTEGRACOES", "REGISTRO_DIARIO"],
+        description="Funcionalidades onde a listagem de tarefas estará disponível ('GESTAO_INTEGRACOES', 'REGISTRO_DIARIO')"
+    )
 
 
 class IntegracaoEndpointCreate(IntegracaoEndpointBase):
@@ -165,6 +218,7 @@ class IntegracaoEndpointUpdate(BaseModel):
     usuarios_selecionados: list[UUID] | None = None
     ativo_sincronizacao: bool | None = None
     frequencia_cron: str | None = None
+    funcionalidades_habilitadas: list[str] | None = None
     mapeamento: IntegracaoMapeamentoUpdate | None = None
 
 
@@ -190,6 +244,7 @@ class IntegracaoEndpointResponse(IntegracaoEndpointBase):
 class IntegracaoConfigBase(BaseModel):
     nome: str = Field(..., min_length=1, max_length=255)
     descricao: str | None = None
+    status: StatusIntegracaoEnum = StatusIntegracaoEnum.ATIVO
     provedor: ProvedorIntegracaoEnum = ProvedorIntegracaoEnum.CUSTOM_REST
     url_base: str = Field(..., min_length=1, description="URL_INTEGRACAO base, ex: 'https://api.ufpi.br/v1'")
     tipo_autenticacao: TipoAutenticacaoEnum = TipoAutenticacaoEnum.NONE
@@ -211,6 +266,7 @@ class IntegracaoConfigCreate(IntegracaoConfigBase):
 class IntegracaoConfigUpdate(BaseModel):
     nome: str | None = Field(None, min_length=1, max_length=255)
     descricao: str | None = None
+    status: StatusIntegracaoEnum | None = None
     provedor: ProvedorIntegracaoEnum | None = None
     url_base: str | None = None
     tipo_autenticacao: TipoAutenticacaoEnum | None = None
@@ -223,6 +279,7 @@ class IntegracaoConfigUpdate(BaseModel):
     headers_padrao: dict[str, str] | None = None
     ativo_sincronizacao: bool | None = None
     frequencia_cron: str | None = None
+    endpoints: list[IntegracaoEndpointCreate] | None = None
 
 
 class IntegracaoConfigResponse(IntegracaoConfigBase):
@@ -322,6 +379,7 @@ class InspectSchemaRequest(BaseModel):
     corpo_requisicao: str | None = None
     raw_sample: Any | None = None
     context: dict[str, Any] | None = None
+    iteration_contexts: list[dict[str, Any]] | None = None
 
     @model_validator(mode='before')
     @classmethod
@@ -361,6 +419,7 @@ class PreviewMappingRequest(BaseModel):
     corpo_requisicao: str | None = None
     mapeamento: IntegracaoMapeamentoBase
     context: dict[str, Any] | None = None
+    iteration_contexts: list[dict[str, Any]] | None = None
 
     @model_validator(mode='before')
     @classmethod
@@ -371,15 +430,31 @@ class PreviewMappingRequest(BaseModel):
         return data
 
 
+class PreviewSyncRequest(BaseModel):
+    id_usuario_simulacao: UUID | None = None
+    id_unidade_simulacao: UUID | None = None
+
+
+class SyncNowRequest(BaseModel):
+    selected_external_ids: list[str] | None = Field(None, description="Lista opcional de external_ids selecionados na pré-visualização para salvar")
+    id_usuario_simulacao: UUID | None = Field(None, description="Identificador opcional de usuário para simulação de contexto")
+    id_unidade_simulacao: UUID | None = Field(None, description="Identificador opcional de unidade para simulação de contexto")
+
+
 class TransformedItemPreview(BaseModel):
     tipo_integracao: TipoIntegracaoEnum = TipoIntegracaoEnum.RECEBER_ENTREGAS
     external_id: str
+    quantidade_registros: int = Field(1, description="Quantidade de registros externos encontrados com este mesmo ID")
+    ja_existe: bool = Field(False, description="Indica se o registro já existe na base de dados")
+    campos_alterados: list[str] = Field(default_factory=list, description="Campos diferentes em relação ao registro existente no banco")
+    valores_anteriores: dict[str, Any] | None = Field(None, description="Valores atuais persistidos no banco de dados antes da sincronização")
     titulo: str
     descricao: str | None = None
     codigo: str | None = None
     data_inicio: date | None = None
     data_fim: date | None = None
     data_conclusao: date | None = None
+    data_atualizacao: date | None = None
     status: str
     progresso_percentual: int | None = None
     valor_inicial: float | None = None
@@ -390,6 +465,11 @@ class TransformedItemPreview(BaseModel):
     unidade_nome_mapeado: str | None = None
     meta_identificador: str | None = None
     tipo_anotacao: str | None = None
+    projeto: str | None = None
+    prioridade: str | None = None
+    autor: str | None = None
+    link_externo: str | None = None
+    campos_extras: dict[str, Any] | None = None
     raw_item: dict[str, Any] | None = None
 
 
@@ -415,15 +495,31 @@ class SyncResultResponse(BaseModel):
 
 class SyncPreviewItem(BaseModel):
     external_id: str
+    quantidade_registros: int = Field(1, description="Quantidade de registros externos encontrados com este mesmo ID")
+    ja_existe: bool = Field(False, description="Indica se o registro já existe na base de dados")
+    campos_alterados: list[str] = Field(default_factory=list, description="Campos diferentes em relação ao registro existente no banco")
+    valores_anteriores: dict[str, Any] | None = Field(None, description="Valores atuais persistidos no banco de dados antes da sincronização")
     titulo: str
     tipo_integracao: TipoIntegracaoEnum
-    acao: str  # 'CRIAR', 'ATUALIZAR', 'INALTERADO'
+    acao: str  # 'CRIAR', 'ATUALIZAR', 'INALTERADO', 'VISUALIZAR'
     status: str | None = None
     data_inicio: str | None = None
     data_fim: str | None = None
+    data_criacao: str | None = None
+    data_atualizacao: str | None = None
     usuario_responsavel_nome: str | None = None
     unidade_nome: str | None = None
     progresso_percentual: int | None = None
+    link_externo: str | None = None
+    projeto: str | None = None
+    prioridade: str | None = None
+    tipo_anotacao: str | None = None
+    autor: str | None = None
+    codigo: str | None = None
+    valor_pretendido: float | None = None
+    valor_atual: float | None = None
+    responsavel_identificador: str | None = None
+    unidade_identificador: str | None = None
     detalhes: dict[str, Any] | None = None
 
 
@@ -447,5 +543,44 @@ class SyncPreviewResponse(BaseModel):
     items: list[SyncPreviewItem] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     motivos_erros: list[SyncPreviewErrorDetail] = Field(default_factory=list)
+
+
+class LiveTaskItem(BaseModel):
+    id: str | int
+    titulo: str
+    descricao: str | None = None
+    status: str | None = None
+    projeto: str | None = None
+    tracker: str | None = None
+    prioridade: str | None = None
+    autor: str | None = None
+    responsavel: str | None = None
+    data_criacao: str | None = None
+    data_atualizacao: str | None = None
+    percentual_feito: int | None = None
+    url_externa: str | None = None
+    origem_provedor: str | None = None
+    detalhes_extras: dict[str, Any] | None = None
+
+
+class EndpointOpcaoItem(BaseModel):
+    id: UUID
+    nome: str
+    tipo_integracao: TipoIntegracaoEnum
+    provedor: str | None = None
+    modo_execucao: ModoExecucaoEnum = ModoExecucaoEnum.AUTOMATICO
+    ativo_sincronizacao: bool = True
+
+
+class LiveTasksResponse(BaseModel):
+    success: bool
+    modo_execucao: ModoExecucaoEnum = ModoExecucaoEnum.AUTOMATICO
+    total_tarefas: int
+    tarefas: list[LiveTaskItem] = Field(default_factory=list)
+    endpoints_consultados: list[str] = Field(default_factory=list)
+    endpoint_ativo_id: UUID | None = None
+    endpoint_ativo_nome: str | None = None
+    endpoints_disponiveis: list[EndpointOpcaoItem] = Field(default_factory=list)
+    erros_ou_avisos: list[str] = Field(default_factory=list)
 
 

@@ -2,12 +2,20 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, require_admin, get_current_organization_id
+from app.core.dependencies import (
+    get_current_user,
+    require_admin,
+    get_current_organization_id,
+    require_active_organization,
+    require_org_gestor,
+)
 from app.core.response import success_response
 from app.models.usuario import Usuario
+from app.models.organizacao import Organizacao
 from app.schemas.unidade import UnidadeCreate, UnidadeUpdate
 from app.schemas.grupo import GrupoCreate, GrupoUpdate
-from app.services import unidade_service, grupo_service
+from app.schemas.campo_customizado import ValoresCamposCustomizadosUpdate
+from app.services import unidade_service, grupo_service, campo_customizado_service
 
 router = APIRouter(tags=["Unidades"])
 
@@ -57,3 +65,30 @@ def create_grupo_in_unidade(id: UUID, data: GrupoCreate, db: Session = Depends(g
 def update_grupo_in_unidade(uid: UUID, gid: UUID, data: GrupoUpdate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
     result = grupo_service.update_in_unidade(db, uid, gid, data)
     return success_response(data=result, message="group.updated_in_unit")
+
+
+@router.get("/{id}/campos-customizados")
+def get_unidade_campos_customizados(
+    id: UUID,
+    org: Organizacao = Depends(require_active_organization),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    result = campo_customizado_service.get_unidade_campos_customizados(db, org.id, id)
+    return success_response(data=result, message="campo_customizado.found")
+
+
+@router.put("/{id}/campos-customizados")
+def update_unidade_campos_customizados(
+    id: UUID,
+    payload: ValoresCamposCustomizadosUpdate,
+    org: Organizacao = Depends(require_active_organization),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    require_org_gestor(str(org.id), current_user, db)
+    result = campo_customizado_service.update_unidade_campos_customizados(
+        db, org.id, id, payload.campos_customizados
+    )
+    return success_response(data=result, message="campo_customizado.unit_values_updated")
+

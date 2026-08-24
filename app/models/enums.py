@@ -44,6 +44,13 @@ class TipoIntegracaoEnum(str, enum.Enum):
     RECEBER_METAS = 'RECEBER_METAS'
     RECEBER_ENTREGAS = 'RECEBER_ENTREGAS'
     RECEBER_TAREFAS = 'RECEBER_TAREFAS'
+    ENVIAR_NOTAS_TAREFAS = 'ENVIAR_NOTAS_TAREFAS'
+
+
+class StatusIntegracaoEnum(str, enum.Enum):
+    RASCUNHO = 'RASCUNHO'
+    ATIVO = 'ATIVO'
+    INATIVO = 'INATIVO'
 
 
 class ModoExecucaoEnum(str, enum.Enum):
@@ -52,12 +59,27 @@ class ModoExecucaoEnum(str, enum.Enum):
     GLOBAL_UNICO = 'GLOBAL_UNICO'
     POR_UNIDADE = 'POR_UNIDADE'
     POR_USUARIO = 'POR_USUARIO'
+    AUTOMATICO = 'AUTOMATICO'
+    BOTAO_NA_FUNCIONALIDADE = 'BOTAO_NA_FUNCIONALIDADE'
+
+
+class EntidadeCampoCustomizadoEnum(str, enum.Enum):
+    USUARIO = 'USUARIO'
+    UNIDADE = 'UNIDADE'
+
+
+class TipoDadoCampoCustomizadoEnum(str, enum.Enum):
+    TEXTO = 'TEXTO'
+    NUMERO = 'NUMERO'
+    BOOLEANO = 'BOOLEANO'
 
 
 class EscopoIteracaoEnum(str, enum.Enum):
     TODAS = 'TODAS'
     SELECIONADAS = 'SELECIONADAS'
     TODOS = 'TODOS'
+    SELECIONADOS = 'SELECIONADOS'
+    USUARIO_LOGADO = 'USUARIO_LOGADO'
 
 
 class ProvedorIntegracaoEnum(str, enum.Enum):

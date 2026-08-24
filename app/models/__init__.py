@@ -16,10 +16,13 @@ from app.models.enums import (
     ParametroTipoOrigemEnum,
     StatusExecucaoEnum,
     OrigemDisparoEnum,
+    EntidadeCampoCustomizadoEnum,
+    TipoDadoCampoCustomizadoEnum,
 )
 from app.models.usuario import Usuario
 from app.models.organizacao import Organizacao
 from app.models.usuario_organizacao import UsuarioOrganizacao
+from app.models.organizacao_campo_customizado import OrganizacaoCampoCustomizado
 from app.models.unidade import Unidade
 from app.models.nivel import Nivel
 from app.models.grupo import GrupoTrabalho

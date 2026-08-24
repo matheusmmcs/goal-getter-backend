@@ -295,11 +295,13 @@ def listar_usuarios_detalhados_organizacao(db: Session, org_id: UUID):
         resultado.append({
             "vinculo_id": v.id,
             "usuario_id": usr.id,
+            "id": usr.id,
             "nome": usr.nome,
             "usuario": usr.usuario,
             "email": usr.email,
             "cpf": usr.cpf,
             "papel_organizacao": v.papel_organizacao,
+            "campos_customizados": v.campos_customizados or {},
             "unidades": unidades_usuario,
             "grupos": grupos_usuario
         })

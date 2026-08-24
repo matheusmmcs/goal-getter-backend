@@ -28,6 +28,7 @@ class UnidadeResponse(BaseModel):
     codigo: Optional[int] = None
     id_unidade_pai: Optional[UUID] = None
     id_organizacao: Optional[UUID] = None
+    campos_customizados: Optional[dict] = None
     inativo: bool
 
     model_config = ConfigDict(from_attributes=True)

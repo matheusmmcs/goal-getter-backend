@@ -5,13 +5,19 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_admin, require_org_gestor, require_org_member
 from app.core.response import success_response
 from app.models.usuario import Usuario
+from app.models.enums import EntidadeCampoCustomizadoEnum
 from app.schemas.organizacao import (
     OrganizacaoCreate,
     OrganizacaoUpdate,
     UsuarioVinculoItem,
     VinculoUpdateSchema,
 )
-from app.services import organizacao_service
+from app.schemas.campo_customizado import (
+    OrganizacaoCampoCustomizadoCreate,
+    OrganizacaoCampoCustomizadoUpdate,
+    ValoresCamposCustomizadosUpdate,
+)
+from app.services import organizacao_service, campo_customizado_service
 
 router = APIRouter(prefix="/organizacoes", tags=["Organizações"])
 
@@ -132,3 +138,96 @@ def desativar_vinculo(
     require_org_gestor(str(id), current_user, db)
     result = organizacao_service.desativar_vinculo_usuario(db, id, usuario_id)
     return success_response(data=result, message="organization.vinculo.deactivated")
+
+
+# --- CAMPOS CUSTOMIZADOS DA ORGANIZAÇÃO ---
+
+@router.get("/{id}/campos-customizados")
+def list_campos_customizados(
+    id: UUID,
+    entidade: EntidadeCampoCustomizadoEnum | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    require_org_member(str(id), current_user, db)
+    result = campo_customizado_service.list_campos_customizados(db, id, entidade)
+    return success_response(data=result, message="campo_customizado.listed")
+
+
+@router.post("/{id}/campos-customizados")
+def create_campo_customizado(
+    id: UUID,
+    data: OrganizacaoCampoCustomizadoCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    require_org_gestor(str(id), current_user, db)
+    result = campo_customizado_service.create_campo_customizado(db, id, data)
+    return success_response(data=result, message="campo_customizado.created")
+
+
+@router.get("/{id}/campos-customizados/{campo_id}")
+def get_campo_customizado(
+    id: UUID,
+    campo_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    require_org_member(str(id), current_user, db)
+    result = campo_customizado_service.get_campo_customizado(db, id, campo_id)
+    return success_response(data=result, message="campo_customizado.found")
+
+
+@router.put("/{id}/campos-customizados/{campo_id}")
+def update_campo_customizado(
+    id: UUID,
+    campo_id: UUID,
+    data: OrganizacaoCampoCustomizadoUpdate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    require_org_gestor(str(id), current_user, db)
+    result = campo_customizado_service.update_campo_customizado(db, id, campo_id, data)
+    return success_response(data=result, message="campo_customizado.updated")
+
+
+@router.delete("/{id}/campos-customizados/{campo_id}")
+def delete_campo_customizado(
+    id: UUID,
+    campo_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    require_org_gestor(str(id), current_user, db)
+    result = campo_customizado_service.delete_campo_customizado(db, id, campo_id)
+    return success_response(data=result, message="campo_customizado.deleted")
+
+
+@router.get("/{id}/usuarios/{usuario_id}/campos-customizados")
+def get_usuario_campos_customizados(
+    id: UUID,
+    usuario_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    require_org_member(str(id), current_user, db)
+    result = campo_customizado_service.get_usuario_campos_customizados(db, id, usuario_id)
+    return success_response(data=result, message="campo_customizado.found")
+
+
+@router.put("/{id}/usuarios/{usuario_id}/campos-customizados")
+def update_usuario_campos_customizados(
+    id: UUID,
+    usuario_id: UUID,
+    payload: ValoresCamposCustomizadosUpdate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    if current_user.id != usuario_id:
+        require_org_gestor(str(id), current_user, db)
+    else:
+        require_org_member(str(id), current_user, db)
+    result = campo_customizado_service.update_usuario_campos_customizados(
+        db, id, usuario_id, payload.campos_customizados
+    )
+    return success_response(data=result, message="campo_customizado.user_values_updated")

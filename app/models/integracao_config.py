@@ -10,6 +10,7 @@ from app.models.enums import (
     ProvedorIntegracaoEnum,
     TipoAutenticacaoEnum,
     MetodoHttpEnum,
+    StatusIntegracaoEnum,
 )
 
 if TYPE_CHECKING:
@@ -28,16 +29,27 @@ class IntegracaoConfig(Base):
     id_organizacao: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('organizacoes.id'), nullable=False)
     nome: Mapped[str] = mapped_column(String, nullable=False)
     descricao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[StatusIntegracaoEnum] = mapped_column(
+        SAEnum(StatusIntegracaoEnum, values_callable=lambda obj: [e.value for e in obj], name='statusintegracaoenum', create_type=False),
+        default=StatusIntegracaoEnum.ATIVO,
+        nullable=False,
+    )
     provedor: Mapped[ProvedorIntegracaoEnum] = mapped_column(
-        SAEnum(ProvedorIntegracaoEnum), default=ProvedorIntegracaoEnum.CUSTOM_REST, nullable=False
+        SAEnum(ProvedorIntegracaoEnum, values_callable=lambda obj: [e.value for e in obj], name='provedorintegracaoenum', create_type=False),
+        default=ProvedorIntegracaoEnum.CUSTOM_REST,
+        nullable=False,
     )
     url_base: Mapped[str] = mapped_column(String, nullable=False)
     tipo_autenticacao: Mapped[TipoAutenticacaoEnum] = mapped_column(
-        SAEnum(TipoAutenticacaoEnum), default=TipoAutenticacaoEnum.NONE, nullable=False
+        SAEnum(TipoAutenticacaoEnum, values_callable=lambda obj: [e.value for e in obj], name='tipoautenticacaoenum', create_type=False),
+        default=TipoAutenticacaoEnum.NONE,
+        nullable=False,
     )
     auth_endpoint_path: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     auth_metodo_http: Mapped[Optional[MetodoHttpEnum]] = mapped_column(
-        SAEnum(MetodoHttpEnum), default=MetodoHttpEnum.POST, nullable=True
+        SAEnum(MetodoHttpEnum, values_callable=lambda obj: [e.value for e in obj], name='metodohttpenum', create_type=False),
+        default=MetodoHttpEnum.POST,
+        nullable=True,
     )
     auth_headers: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     auth_payload: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)

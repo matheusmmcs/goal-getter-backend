@@ -29,11 +29,15 @@ class IntegracaoEndpoint(Base):
     )
     nome: Mapped[str] = mapped_column(String, nullable=False)
     tipo_integracao: Mapped[TipoIntegracaoEnum] = mapped_column(
-        SAEnum(TipoIntegracaoEnum), default=TipoIntegracaoEnum.RECEBER_ENTREGAS, nullable=False
+        SAEnum(TipoIntegracaoEnum, values_callable=lambda obj: [e.value for e in obj], name='tipointegracaoenum', create_type=False),
+        default=TipoIntegracaoEnum.RECEBER_ENTREGAS,
+        nullable=False,
     )
     path: Mapped[str] = mapped_column(String, nullable=False)
     metodo_http: Mapped[MetodoHttpEnum] = mapped_column(
-        SAEnum(MetodoHttpEnum), default=MetodoHttpEnum.GET, nullable=False
+        SAEnum(MetodoHttpEnum, values_callable=lambda obj: [e.value for e in obj], name='metodohttpenum', create_type=False),
+        default=MetodoHttpEnum.GET,
+        nullable=False,
     )
     modo_execucao: Mapped[ModoExecucaoEnum] = mapped_column(
         SAEnum(ModoExecucaoEnum, values_callable=lambda obj: [e.value for e in obj], name='modoexecucaoenum', create_type=False),
@@ -49,6 +53,9 @@ class IntegracaoEndpoint(Base):
     usuarios_selecionados: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     ativo_sincronizacao: Mapped[bool] = mapped_column(Boolean, default=True)
     frequencia_cron: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    funcionalidades_habilitadas: Mapped[Optional[list]] = mapped_column(
+        JSON, nullable=True, default=lambda: ["GESTAO_INTEGRACOES", "REGISTRO_DIARIO"]
+    )
     inativo: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_in_app_timezone)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
