@@ -32,8 +32,9 @@ pyrefly = "^0.1.0"
 pyright = "^1.1.411"
 
 [tool.poetry.scripts]
-dev = "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 pyrefly = "scripts.pyrefly_cli:main"
+
+
 
 [build-system]
 requires = ["poetry-core"]

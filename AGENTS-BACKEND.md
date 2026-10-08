@@ -104,8 +104,12 @@ app/
 ## 🧪 Validação e Execução
 
 ```bash
-# Executar servidor local de desenvolvimento
-poetry run dev
+# Executar servidor de desenvolvimento (Docker)
+make dev
+
+# Executar servidor local sem Docker (Poetry / Uvicorn)
+make dev-local
+
 
 # Rodar os testes automatizados (Local / Poetry)
 poetry run pytest

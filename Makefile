@@ -8,7 +8,9 @@ PYTHON ?= poetry run python
 ALEMBIC ?= poetry run alembic
 PYTEST ?= poetry run pytest
 PYREFLY ?= poetry run pyrefly
+UVICORN ?= poetry run uvicorn
 DOCKER_COMPOSE ?= docker compose
+
 
 # Cores para o help interativo
 CYAN := \033[36m
@@ -26,8 +28,18 @@ help: ## Mostra esta lista de comandos disponíveis
 ## === 🚀 Execução & Desenvolvimento ===
 
 .PHONY: dev
-dev: ## Inicia a API FastAPI localmente com hot reload (porta 8000)
-	poetry run dev
+dev: ## Sobe a stack de desenvolvimento (API + DB) via Docker Compose com hot reload (porta 8881)
+	$(DOCKER_COMPOSE) up
+
+.PHONY: dev-d
+dev-d: ## Sobe a stack de desenvolvimento via Docker em background (detached)
+	$(DOCKER_COMPOSE) up -d
+
+.PHONY: dev-local
+dev-local: ## Inicia a API FastAPI localmente via Poetry/Uvicorn sem Docker (porta 8000)
+	$(UVICORN) app.main:app --reload --host 0.0.0.0 --port 8000
+
+
 
 .PHONY: db
 db: ## Sobe apenas o container do PostgreSQL em background (porta 5472)

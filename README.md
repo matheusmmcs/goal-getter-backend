@@ -23,9 +23,10 @@ API backend para o sistema **Goal Getter** — gestão de equipes e acompanhamen
 
 ## 🚀 Início Rápido
 
-> 💡 **Dica:** Utilize o `Makefile` para automatizar tarefas cotidianas. Execute `make help` para visualizar todos os comandos disponíveis (dev, migrações, testes, repomix, codegraph).
+> 💡 **Dica com Makefile:** Execute `make dev` para subir a stack completa em desenvolvimento via Docker (API na porta 8881 + DB na porta 5472 com hot-reload) ou `make help` para ver todos os comandos.
 
 ### Opção 1: Docker Compose (Recomendado)
+
 
 
 ```bash
