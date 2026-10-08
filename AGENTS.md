@@ -16,6 +16,17 @@
 > **INTERNACIONALIZAÇÃO OBRIGATÓRIA (REGRA MANDATÓRIA DE i18n)**:
 > SEMPRE que for criar ou alterar qualquer funcionalidade, endpoint, regra de negócio, validação ou serviço, o desenvolvimento DEVE ser pensado e implementado com internacionalização (i18n). É proibido o uso de textos literais ou hardcoded em mensagens de erro (`HTTPException.detail`), feedbacks (`message`) ou respostas da API. Todas as mensagens devem utilizar chaves estruturadas mantidas com paridade absoluta nos catálogos `pt-BR` e `en-US`.
 
+> [!IMPORTANT]
+> **CONVENTIONAL COMMITS OBRIGATÓRIO AO FINAL DE CADA ALTERAÇÃO DE CÓDIGO (REGRA MANDATÓRIA)**:
+> SEMPRE que o agente realizar qualquer alteração, adição ou correção no projeto (código, testes, documentação ou configurações), DEVE obrigatoriamente fornecer ao final de sua resposta uma sugestão de mensagem de commit seguindo estritamente o padrão **Conventional Commits** (ex: `feat(...)`, `fix(...)`, `refactor(...)`, `chore(...)`, `test(...)`, `docs(...)`). A mensagem deve estar formatada em bloco de código, pronta para ser copiada e utilizada pelo usuário.
+
+> [!IMPORTANT]
+> **OTIMIZAÇÃO DE CONTEXTO E USO OBRIGATÓRIO DE REPOMIX E CODEGRAPH (REGRA MANDATÓRIA)**:
+> 1. **Atualização do Contexto (`make context`)**: SEMPRE que o agente for iniciar qualquer trabalho, feature, investigação ou refatoração na aplicação, DEVE executar `make context` (ou `make ai-context`) na raiz do repositório para garantir que o índice semântico do CodeGraph e o empacotamento do Repomix estejam atualizados.
+> 2. **Consulta Semântica Prioritária (Economia Crítica de Tokens)**: O agente DEVE SEMPRE priorizar consultar os símbolos e fluxos de chamada através da ferramenta MCP `codegraph_explore` (ou CLI `npx @colbymchenry/codegraph`) e do sumário gerado pelo Repomix (`repomix-output.xml`), em vez de realizar múltiplos loops exaustivos de `grep`, `find` ou leitura de múltiplos arquivos individuais. Essa prática é mandatória para minimizar drasticamente o consumo de tokens e maximizar a precisão arquitetural.
+
+
+
 > [!NOTE]
 > Este arquivo documenta as **regras de negócio**, domínios funcionais, regras de auditoria e glossário do sistema **Goal Getter**.
 > Para diretrizes técnicas de implementação (stack, padrões de código, ORM, migrações), consulte o [AGENTS-BACKEND.md](./AGENTS-BACKEND.md).

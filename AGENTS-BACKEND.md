@@ -132,3 +132,7 @@ docker compose -f docker-compose.test.yml run --rm test
 6. **Sempre** crie uma migração Alembic para alterações em `app/models/`.
 7. **Sempre** execute `pytest` antes de finalizar uma tarefa no backend.
 8. **Sempre** pense e implemente novas funcionalidades ou alterações com internacionalização (i18n), mantendo paridade estrita entre `pt-BR.json` e `en-US.json` e sem mensagens literais no código.
+9. **Sempre** forneça ao final da resposta uma sugestão de mensagem de commit estruturada segundo o padrão **Conventional Commits** (`feat:`, `fix:`, `chore:`, etc.) pronta para uso sempre que houver alterações no repositório.
+10. **Sempre** atualize o contexto com `make context` ao iniciar tarefas na aplicação e priorize consultar o CodeGraph (`codegraph_explore`) e o Repomix para análise semântica e rastreamento de símbolos, reduzindo drasticamente o consumo de tokens.
+
+

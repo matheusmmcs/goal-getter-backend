@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/yamadashy/repomix/main/repomix-schema.json",
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml",
+    "parsableStyle": true,
+    "fileSummary": true,
+    "directoryStructure": true,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "topFilesLength": 20,
+    "showLineNumbers": false,
+    "copyToClipboard": false
+  },
+  "include": [
+    "app/**",
+    "alembic/**",
+    "scripts/**",
+    "tests/**",
+    "pyproject.toml",
+    "alembic.ini",
+    "docker-compose*.yml",
+    "Dockerfile*",
+    "Makefile",
+    "*.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/.venv/**",
+      "**/__pycache__/**",
+      "**/.pytest_cache/**",
+      "**/.coverage",
+      "**/coverage/**",
+      "**/htmlcov/**",
+      "**/logs/**",
+      "**/*.log",
+      "poetry.lock",
+      "**/.codegraph/**",
+      "**/repomix-output.*",
+      "alembic/versions/*.py"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}

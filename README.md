@@ -23,7 +23,10 @@ API backend para o sistema **Goal Getter** — gestão de equipes e acompanhamen
 
 ## 🚀 Início Rápido
 
+> 💡 **Dica:** Utilize o `Makefile` para automatizar tarefas cotidianas. Execute `make help` para visualizar todos os comandos disponíveis (dev, migrações, testes, repomix, codegraph).
+
 ### Opção 1: Docker Compose (Recomendado)
+
 
 ```bash
 # 1. Copiar .env e ajustar DATABASE_URL para usar "db" como host

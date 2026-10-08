@@ -34,3 +34,9 @@ alembic/versions/*.py
 !alembic/versions/__init__.py
 
 TODO
+
+# CodeGraph
+.codegraph/
+
+# Repomix
+repomix-output.*
